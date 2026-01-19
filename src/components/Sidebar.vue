@@ -1,6 +1,4 @@
 <script setup>
-import { Satellite, MessageSquare, History, Settings, HelpCircle, ChevronDown, Edit3, Trash2 } from 'lucide-vue-next';
-
 const props = defineProps({
   sessions: Array,
   currentSessionId: String,
@@ -14,7 +12,7 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="logo">
-        <Satellite :size="24" color="#38BDF8" />
+        <i class="fa-solid fa-satellite-dish" style="font-size: 24px; color: #38BDF8;"></i>
         <span>GICI AIHUB</span>
       </div>
     </div>
@@ -27,7 +25,7 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
           :class="{ active: !currentSessionId }"
           @click="emit('new-chat')"
         >
-          <MessageSquare :size="18" />
+          <i class="fa-solid fa-message"></i>
           <span>新对话</span>
         </button>
       </div>
@@ -35,7 +33,7 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
       <div class="nav-group" :class="{ collapsed: isCollapsed }">
         <div class="nav-header" @click="emit('toggle-history')">
           <span class="nav-label">历史记录</span>
-          <ChevronDown :size="14" class="toggle-icon" />
+          <i class="fa-solid fa-chevron-down toggle-icon" style="font-size: 14px;"></i>
         </div>
         
         <div v-if="!isCollapsed" class="history-list">
@@ -46,14 +44,14 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
             :class="{ active: session.id === currentSessionId }"
             @click="emit('select-session', session.id)"
           >
-            <MessageSquare :size="16" />
+            <i class="fa-solid fa-message" style="font-size: 16px;"></i>
             <span class="session-title">{{ session.title || '无标题会话' }}</span>
             <div class="item-actions">
               <button class="action-btn rename" @click.stop="emit('rename-session', session)">
-                <Edit3 :size="14" />
+                <i class="fa-solid fa-pen-to-square" style="font-size: 14px;"></i>
               </button>
               <button class="action-btn delete" @click.stop="emit('delete-session', session)">
-                <Trash2 :size="14" />
+                <i class="fa-solid fa-trash-can" style="font-size: 14px;"></i>
               </button>
             </div>
           </button>
@@ -63,7 +61,7 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
       <div class="nav-group">
         <span class="nav-label">设置</span>
         <button class="nav-item">
-          <Settings :size="18" />
+          <i class="fa-solid fa-gear"></i>
           <span>偏好设置</span>
         </button>
         <a 
@@ -72,13 +70,22 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
           rel="noopener noreferrer"
           class="nav-item"
         >
-          <HelpCircle :size="18" />
+          <i class="fa-solid fa-circle-question"></i>
           <span>帮助文档</span>
         </a>
       </div>
     </div>
     
     <div class="sidebar-footer">
+      <a 
+        href="https://github.com/zvictorliu/gici-aihub-webui.git" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        class="github-link"
+        title="GitHub Repository"
+      >
+        <i class="fa-brands fa-github" style="font-size: 16px;"></i>
+      </a>
       <span>© 2026 GICI-aihub</span>
       <span>All Rights Reserved</span>
     </div>
@@ -261,5 +268,16 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.4);
   text-align: center;
+  align-items: center;
+}
+
+.github-link {
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 0.2s;
+  margin-bottom: 4px;
+}
+
+.github-link:hover {
+  color: white;
 }
 </style>

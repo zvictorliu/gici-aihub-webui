@@ -1,6 +1,5 @@
 <script setup>
 import { ref } from 'vue';
-import { Send } from 'lucide-vue-next';
 
 const emit = defineEmits(['send']);
 const message = ref('');
@@ -24,11 +23,21 @@ const handleSend = () => {
         @keypress.enter.prevent="handleSend"
       >
       <button class="send-btn" @click="handleSend" :disabled="!message.trim()">
-        <Send :size="20" />
+        <i class="fa-solid fa-paper-plane" style="font-size: 20px;"></i>
       </button>
     </div>
     <p class="input-hint">按 Enter 键发送。描述越详细（如传感器型号或具体算法），回答越准确。</p>
-    <p class="copyright">© 2026 GICI-aihub All Rights Reserved</p>
+    <div class="footer-info">
+      <a 
+        href="https://github.com/zvictorliu/gici-aihub-webui.git" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        class="github-link"
+      >
+        <i class="fa-brands fa-github" style="font-size: 14px;"></i>
+      </a>
+      <p class="copyright">© 2026 GICI-aihub All Rights Reserved</p>
+    </div>
   </div>
 </template>
 
@@ -102,10 +111,27 @@ input {
 }
 
 .copyright {
-  margin-top: 8px;
   font-size: 0.75rem;
   color: rgba(0, 0, 0, 0.3);
-  text-align: center;
+}
+
+.footer-info {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.github-link {
+  color: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.github-link:hover {
+  color: var(--primary);
 }
 
 @media (max-width: 1024px) {

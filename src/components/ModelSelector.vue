@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Cpu, Zap, Settings2 } from 'lucide-vue-next';
 
 const props = defineProps({
   providers: Array,
@@ -42,21 +41,21 @@ const availableModels = computed(() => {
 <template>
   <div class="model-selector">
     <div class="selector-group">
-      <label><Cpu :size="14" /> 服务商</label>
+      <label><i class="fa-solid fa-microchip" style="font-size: 14px;"></i> 服务商</label>
       <select v-model="selectedProvider">
         <option v-for="p in providers" :key="p.id" :value="p.id">{{ p.name }}</option>
       </select>
     </div>
 
     <div class="selector-group">
-      <label><Zap :size="14" /> 模型</label>
+      <label><i class="fa-solid fa-bolt" style="font-size: 14px;"></i> 模型</label>
       <select v-model="selectedModel">
         <option v-for="m in availableModels" :key="m.id" :value="m.id">{{ m.name }}</option>
       </select>
     </div>
 
     <div class="selector-group">
-      <label><Settings2 :size="14" /> 模式</label>
+      <label><i class="fa-solid fa-sliders" style="font-size: 14px;"></i> 模式</label>
       <select v-model="selectedMode">
         <option v-for="mode in modes" :key="mode.id" :value="mode.id">{{ mode.name }}</option>
       </select>

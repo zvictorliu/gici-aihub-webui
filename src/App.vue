@@ -4,7 +4,6 @@ import Sidebar from './components/Sidebar.vue';
 import ChatBox from './components/ChatBox.vue';
 import ChatInput from './components/ChatInput.vue';
 import ModelSelector from './components/ModelSelector.vue';
-import { Satellite, Activity, User } from 'lucide-vue-next';
 
 const currentSessionId = ref(null);
 const messages = ref([]);
@@ -208,10 +207,10 @@ onMounted(() => {
         </div>
         <div class="header-actions">
           <button class="icon-btn" title="系统状态">
-            <Activity :size="20" />
+            <i class="fa-solid fa-chart-line" style="font-size: 20px;"></i>
           </button>
           <button class="icon-btn" title="个人资料">
-            <User :size="20" />
+            <i class="fa-solid fa-user" style="font-size: 20px;"></i>
           </button>
         </div>
       </header>
