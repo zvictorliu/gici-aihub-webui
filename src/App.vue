@@ -4,6 +4,12 @@ import Sidebar from './components/Sidebar.vue';
 import ChatBox from './components/ChatBox.vue';
 import ChatInput from './components/ChatInput.vue';
 import ModelSelector from './components/ModelSelector.vue';
+import Login from './components/Login.vue';
+import Register from './components/Register.vue';
+import { authService } from './utils/auth';
+
+const currentUser = ref(null);
+const authPage = ref('login'); // 'login' or 'register'
 
 const currentSessionId = ref(null);
 const messages = ref([]);
@@ -16,6 +22,20 @@ const modelConfig = ref({
 });
 const isHistoryCollapsed = ref(false);
 const isTyping = ref(false);
+
+const handleLoginSuccess = (user) => {
+    currentUser.value = user;
+    loadHistory();
+    loadConfig();
+};
+
+const handleLogout = () => {
+    authService.logout();
+    currentUser.value = null;
+    currentSessionId.value = null;
+    messages.value = [];
+    authPage.value = 'login';
+};
 
 const appendMessage = (text, sender, timestamp) => {
     messages.value.push({
@@ -203,14 +223,29 @@ const handleDeleteSession = async (session) => {
 };
 
 onMounted(() => {
+    currentUser.value = authService.getCurrentUser();
     handleNewChat();
-    loadHistory();
-    loadConfig();
+    if (currentUser.value) {
+        loadHistory();
+        loadConfig();
+    }
 });
 </script>
 
 <template>
-  <div class="app-layout">
+  <div v-if="!currentUser">
+    <Login 
+      v-if="authPage === 'login'" 
+      @login-success="handleLoginSuccess" 
+      @go-to-register="authPage = 'register'"
+    />
+    <Register 
+      v-else 
+      @go-to-login="authPage = 'login'"
+    />
+  </div>
+  
+  <div v-else class="app-layout">
     <Sidebar 
       :sessions="sessions" 
       :currentSessionId="currentSessionId"
@@ -226,14 +261,14 @@ onMounted(() => {
       <header class="app-header">
         <div class="header-info">
           <h1>GICI 知识库智能助手</h1>
-          <p>面向 GICI-lib 的 AI 知识库 (Vue 版)</p>
+          <p>欢迎, {{ currentUser.username }}</p>
         </div>
         <div class="header-actions">
           <button class="icon-btn" title="系统状态">
             <i class="fa-solid fa-chart-line" style="font-size: 20px;"></i>
           </button>
-          <button class="icon-btn" title="个人资料">
-            <i class="fa-solid fa-user" style="font-size: 20px;"></i>
+          <button class="icon-btn" title="退出登录" @click="handleLogout">
+            <i class="fa-solid fa-right-from-bracket" style="font-size: 20px;"></i>
           </button>
         </div>
       </header>

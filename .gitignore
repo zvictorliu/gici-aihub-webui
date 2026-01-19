@@ -43,3 +43,6 @@ temp/
 .*
 !.gitignore
 !.python-version
+
+# user data
+users*.json
