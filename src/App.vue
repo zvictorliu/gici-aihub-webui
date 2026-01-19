@@ -29,15 +29,17 @@ const loadConfig = async () => {
     try {
         const response = await fetch('/api/config/providers');
         const data = await response.json();
-        providers.value = data.providers || [];
+        providers.value = Array.isArray(data) ? data : (data.providers || []);
         
         // Set default values from first available provider/model if not set
         if (providers.value.length > 0) {
             const firstProvider = providers.value[0];
             modelConfig.value.providerID = firstProvider.id;
-            const models = Object.keys(firstProvider.models);
-            if (models.length > 0) {
-                modelConfig.value.modelID = models[0];
+            if (firstProvider.models) {
+                const models = Object.keys(firstProvider.models);
+                if (models.length > 0) {
+                    modelConfig.value.modelID = models[0];
+                }
             }
         }
     } catch (error) {
@@ -78,7 +80,7 @@ const handleSelectSession = async (sessionId) => {
             data.forEach(msg => {
                 const role = msg.info ? msg.info.role : msg.role;
                 const timestamp = msg.info && msg.info.time ? msg.info.time.created : null;
-                const textParts = msg.parts
+                const textParts = (msg.parts || [])
                     .filter(part => part.type === 'text')
                     .map(part => part.text)
                     .join('');
@@ -103,30 +105,51 @@ const handleSendMessage = async (message) => {
     try {
         // Lazy session initialization
         if (!currentSessionId.value) {
-            const sessionResp = await fetch('/api/session', { method: 'POST' });
+            const sessionResp = await fetch('/api/session', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: 'GICI Assistant Session' })
+            });
             const sessionData = await sessionResp.json();
-            if (sessionData.session_id) {
-                currentSessionId.value = sessionData.session_id;
+            const sid = sessionData.id || sessionData.session_id;
+            if (sid) {
+                currentSessionId.value = sid;
                 loadHistory();
             } else {
                 throw new Error(sessionData.error || 'Failed to create session');
             }
         }
 
-        const response = await fetch('/api/ask', {
+        const response = await fetch(`/api/session/${currentSessionId.value}/message`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                message: message,
-                session_id: currentSessionId.value,
                 providerID: modelConfig.value.providerID,
                 modelID: modelConfig.value.modelID,
-                mode: modelConfig.value.mode
+                mode: modelConfig.value.mode,
+                parts: [{ type: 'text', text: message }]
             }),
         });
 
         const data = await response.json();
-        appendMessage(data.response, 'assistant');
+        if (data.parts) {
+            let textParts = data.parts
+                .filter(part => part.type === 'text')
+                .map(part => part.text)
+                .join('');
+            
+            if (!textParts) {
+                const hasToolCall = data.parts.some(part => part.type === 'tool_call');
+                textParts = hasToolCall 
+                    ? 'GICI 专家正在进行后台分析，请稍候。' 
+                    : '收到空回复。专家可能正在思考或需要更多上下文信息。';
+            }
+            appendMessage(textParts, 'assistant');
+        } else if (data.error) {
+            throw new Error(data.error);
+        } else {
+            throw new Error('Unexpected response format from server');
+        }
     } catch (error) {
         console.error('Error sending message:', error);
         appendMessage('**系统错误：** ' + (error.message || '无法连接到后端服务器'), 'assistant');
