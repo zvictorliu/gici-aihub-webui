@@ -1,10 +1,23 @@
 <script setup>
 import { computed } from 'vue';
-import { marked } from 'marked';
+import { Marked } from 'marked';
+import { markedHighlight } from "marked-highlight";
+import hljs from 'highlight.js';
+import 'highlight.js/styles/github-dark.css';
 
 const props = defineProps({
   message: Object
 });
+
+const marked = new Marked(
+  markedHighlight({
+    langPrefix: 'hljs language-',
+    highlight(code, lang) {
+      const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+      return hljs.highlight(code, { language }).value;
+    }
+  })
+);
 
 const renderedContent = computed(() => {
   if (props.message.sender === 'assistant') {
@@ -82,15 +95,23 @@ const formattedTime = computed(() => {
 }
 
 :deep(pre) {
-  background: #1e293b;
-  color: #e2e8f0;
-  padding: 16px;
-  border-radius: 8px;
-  overflow-x: auto;
   margin: 12px 0;
 }
 
-:deep(code) {
+:deep(pre code.hljs) {
+  padding: 16px;
+  border-radius: 8px;
+  display: block;
+  overflow-x: auto;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.9em;
+}
+
+:deep(code:not(.hljs)) {
+  background: #f1f5f9;
+  color: #0369a1;
+  padding: 2px 4px;
+  border-radius: 4px;
   font-family: 'Fira Code', monospace;
   font-size: 0.9em;
 }
