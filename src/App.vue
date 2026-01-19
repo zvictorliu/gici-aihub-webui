@@ -3,11 +3,18 @@ import { ref, onMounted } from 'vue';
 import Sidebar from './components/Sidebar.vue';
 import ChatBox from './components/ChatBox.vue';
 import ChatInput from './components/ChatInput.vue';
+import ModelSelector from './components/ModelSelector.vue';
 import { Satellite, Activity, User } from 'lucide-vue-next';
 
 const currentSessionId = ref(null);
 const messages = ref([]);
 const sessions = ref([]);
+const providers = ref([]);
+const modelConfig = ref({
+    providerID: '',
+    modelID: '',
+    mode: 'plan'
+});
 const isHistoryCollapsed = ref(false);
 const isTyping = ref(false);
 
@@ -17,6 +24,26 @@ const appendMessage = (text, sender, timestamp) => {
         sender,
         timestamp: timestamp || new Date().toISOString()
     });
+};
+
+const loadConfig = async () => {
+    try {
+        const response = await fetch('/api/config/providers');
+        const data = await response.json();
+        providers.value = data.providers || [];
+        
+        // Set default values from first available provider/model if not set
+        if (providers.value.length > 0) {
+            const firstProvider = providers.value[0];
+            modelConfig.value.providerID = firstProvider.id;
+            const models = Object.keys(firstProvider.models);
+            if (models.length > 0) {
+                modelConfig.value.modelID = models[0];
+            }
+        }
+    } catch (error) {
+        console.error('Error loading config:', error);
+    }
 };
 
 const loadHistory = async () => {
@@ -92,7 +119,10 @@ const handleSendMessage = async (message) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: message,
-                session_id: currentSessionId.value
+                session_id: currentSessionId.value,
+                providerID: modelConfig.value.providerID,
+                modelID: modelConfig.value.modelID,
+                mode: modelConfig.value.mode
             }),
         });
 
@@ -153,6 +183,7 @@ const handleDeleteSession = async (session) => {
 onMounted(() => {
     handleNewChat();
     loadHistory();
+    loadConfig();
 });
 </script>
 
@@ -184,6 +215,12 @@ onMounted(() => {
           </button>
         </div>
       </header>
+
+      <ModelSelector 
+        v-if="providers.length"
+        v-model="modelConfig"
+        :providers="providers"
+      />
       
       <ChatBox :messages="messages" :isTyping="isTyping" />
       
