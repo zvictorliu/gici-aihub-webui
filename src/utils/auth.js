@@ -33,6 +33,44 @@ export const authService = {
     return data;
   },
 
+  // Record a session ID for a user
+  async addSession(username, sessionId) {
+    try {
+      await fetch('/api/auth/add_session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, sessionId })
+      });
+    } catch (e) {
+      console.error('Failed to sync session to auth backend:', e);
+    }
+  },
+
+  // Get allowed session IDs for a user
+  async getUserSessions(username) {
+    try {
+      const response = await fetch(`/api/auth/user_sessions?username=${encodeURIComponent(username)}`);
+      if (!response.ok) return [];
+      return await response.json();
+    } catch (e) {
+      console.error('Failed to get user sessions:', e);
+      return [];
+    }
+  },
+
+  // Remove a session ID for a user
+  async removeSession(username, sessionId) {
+    try {
+      await fetch('/api/auth/remove_session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, sessionId })
+      });
+    } catch (e) {
+      console.error('Failed to remove session from auth backend:', e);
+    }
+  },
+
   // Logout
   logout() {
     localStorage.removeItem(CURRENT_USER_KEY);

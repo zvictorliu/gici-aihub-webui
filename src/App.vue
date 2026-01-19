@@ -68,10 +68,19 @@ const loadConfig = async () => {
 };
 
 const loadHistory = async () => {
+    if (!currentUser.value) return;
+    
     try {
+        // 1. Get all sessions from primary backend
         const response = await fetch('/api/session');
         const data = await response.json();
-        sessions.value = Array.isArray(data) ? data : (data.sessions || []);
+        const allSessions = Array.isArray(data) ? data : (data.sessions || []);
+        
+        // 2. Get allowed session IDs from auth backend
+        const allowedIds = await authService.getUserSessions(currentUser.value.username);
+        
+        // 3. Filter sessions
+        sessions.value = allSessions.filter(s => allowedIds.includes(s.id));
     } catch (error) {
         console.error('Error loading history:', error);
     }
@@ -134,6 +143,8 @@ const handleSendMessage = async (message) => {
             const sid = sessionData.id || sessionData.session_id;
             if (sid) {
                 currentSessionId.value = sid;
+                // Sync new session to auth backend
+                await authService.addSession(currentUser.value.username, sid);
                 loadHistory();
             } else {
                 throw new Error(sessionData.error || 'Failed to create session');
@@ -209,6 +220,9 @@ const handleDeleteSession = async (session) => {
         });
         
         if (response.ok) {
+            // Also remove from auth backend
+            await authService.removeSession(currentUser.value.username, session.id);
+            
             if (session.id === currentSessionId.value) {
                 handleNewChat();
             }

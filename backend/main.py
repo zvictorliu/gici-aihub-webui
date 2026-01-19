@@ -64,6 +64,56 @@ def login():
     return jsonify({"success": True, "username": username})
 
 
+@app.route("/add_session", methods=["POST"])
+def add_session():
+    data = request.json
+    username = data.get("username")
+    session_id = data.get("sessionId")
+
+    if not username or not session_id:
+        return jsonify({"error": "缺少参数"}), 400
+
+    users = load_users()
+    user = next((u for u in users if u["username"] == username), None)
+    if user:
+        if "sessions" not in user:
+            user["sessions"] = []
+        if session_id not in user["sessions"]:
+            user["sessions"].append(session_id)
+        save_users(users)
+        return jsonify({"success": True})
+    return jsonify({"error": "用户不存在"}), 404
+
+
+@app.route("/user_sessions", methods=["GET"])
+def get_user_sessions():
+    username = request.args.get("username")
+    if not username:
+        return jsonify([]), 400
+
+    users = load_users()
+    user = next((u for u in users if u["username"] == username), None)
+    if user:
+        return jsonify(user.get("sessions", []))
+    return jsonify([])
+
+
+@app.route("/remove_session", methods=["POST"])
+def remove_session():
+    data = request.json
+    username = data.get("username")
+    session_id = data.get("sessionId")
+
+    users = load_users()
+    user = next((u for u in users if u["username"] == username), None)
+    if user and "sessions" in user:
+        if session_id in user["sessions"]:
+            user["sessions"].remove(session_id)
+            save_users(users)
+        return jsonify({"success": True})
+    return jsonify({"error": "用户或会话不存在"}), 404
+
+
 if __name__ == "__main__":
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", 8000))
