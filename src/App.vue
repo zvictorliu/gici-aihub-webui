@@ -59,7 +59,7 @@ const loadHistory = async () => {
 const handleNewChat = () => {
     currentSessionId.value = null;
     messages.value = [{
-        text: '您好！我是您的 **GICI-lib 助手**。我专注于 GNSS/INS 组合导航、RTK 定位以及传感器融合技术。今天有什么我可以帮您的吗？',
+        text: '您好！我是您的 **GICI-lib 知识库助手**。我专注于 GNSS/INS 组合导航、RTK 定位以及传感器融合技术。今天有什么我可以帮您的吗？',
         sender: 'assistant',
         timestamp: new Date().toISOString()
     }];
@@ -203,8 +203,8 @@ onMounted(() => {
     <main class="main-container">
       <header class="app-header">
         <div class="header-info">
-          <h1>组合导航技术专家</h1>
-          <p>由 GICI-lib 提供技术支持 (Vue 版)</p>
+          <h1>GICI 知识库智能助手</h1>
+          <p>面向 GICI-lib 的 AI 知识库 (Vue 版)</p>
         </div>
         <div class="header-actions">
           <button class="icon-btn" title="系统状态">

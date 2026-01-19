@@ -15,7 +15,7 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
     <div class="sidebar-header">
       <div class="logo">
         <Satellite :size="24" color="#38BDF8" />
-        <span>GICI 助手</span>
+        <span>GICI AIHUB</span>
       </div>
     </div>
     
@@ -66,11 +66,21 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
           <Settings :size="18" />
           <span>偏好设置</span>
         </button>
-        <button class="nav-item">
+        <a 
+          href="https://doc.weixin.qq.com/doc/w3_AZ0Axwa3AKACNFQxSoeM6QRaiGcFE?scode=AMoAdQdXAAwLcbRc0FAZ0Axwa3AKA" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          class="nav-item"
+        >
           <HelpCircle :size="18" />
           <span>帮助文档</span>
-        </button>
+        </a>
       </div>
+    </div>
+    
+    <div class="sidebar-footer">
+      <span>© 2026 GICI-aihub</span>
+      <span>All Rights Reserved</span>
     </div>
   </aside>
 </template>
@@ -150,6 +160,7 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
   font-size: 0.9375rem;
   transition: all 0.2s;
   text-align: left;
+  text-decoration: none;
 }
 
 .nav-item:hover {
@@ -239,5 +250,16 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
 
 .action-btn.delete:hover {
   color: #EF4444;
+}
+
+.sidebar-footer {
+  padding: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
 }
 </style>

@@ -28,6 +28,7 @@ const handleSend = () => {
       </button>
     </div>
     <p class="input-hint">按 Enter 键发送。描述越详细（如传感器型号或具体算法），回答越准确。</p>
+    <p class="copyright">© 2026 GICI-aihub All Rights Reserved</p>
   </div>
 </template>
 
@@ -97,6 +98,13 @@ input {
   margin-top: 12px;
   font-size: 0.75rem;
   color: var(--text-secondary);
+  text-align: center;
+}
+
+.copyright {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.3);
   text-align: center;
 }
 
