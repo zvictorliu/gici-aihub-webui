@@ -9,6 +9,7 @@ const currentSessionId = ref(null);
 const messages = ref([]);
 const sessions = ref([]);
 const isHistoryCollapsed = ref(false);
+const isTyping = ref(false);
 
 const appendMessage = (text, sender, timestamp) => {
     messages.value.push({
@@ -16,6 +17,16 @@ const appendMessage = (text, sender, timestamp) => {
         sender,
         timestamp: timestamp || new Date().toISOString()
     });
+};
+
+const loadHistory = async () => {
+    try {
+        const response = await fetch('/api/session');
+        const data = await response.json();
+        sessions.value = Array.isArray(data) ? data : (data.sessions || []);
+    } catch (error) {
+        console.error('Error loading history:', error);
+    }
 };
 
 const handleNewChat = () => {
@@ -27,22 +38,121 @@ const handleNewChat = () => {
     }];
 };
 
-const handleSelectSession = (sessionId) => {
+const handleSelectSession = async (sessionId) => {
+    if (sessionId === currentSessionId.value) return;
+    
     currentSessionId.value = sessionId;
-    // Mock loading messages for now
     messages.value = [];
+    
+    try {
+        const response = await fetch(`/api/session/${sessionId}/message`);
+        const data = await response.json();
+        
+        if (Array.isArray(data)) {
+            data.forEach(msg => {
+                const role = msg.info ? msg.info.role : msg.role;
+                const timestamp = msg.info && msg.info.time ? msg.info.time.created : null;
+                const textParts = msg.parts
+                    .filter(part => part.type === 'text')
+                    .map(part => part.text)
+                    .join('');
+                
+                if (textParts) {
+                    appendMessage(textParts, role === 'user' ? 'user' : 'assistant', timestamp);
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading session messages:', error);
+        appendMessage('**系统错误：** 无法加载会话历史。', 'assistant');
+    }
 };
 
-const handleSendMessage = (message) => {
+const handleSendMessage = async (message) => {
+    if (!message.trim()) return;
+
     appendMessage(message, 'user');
-    // Mock assistant response
-    setTimeout(() => {
-        appendMessage('收到！这是 Vue 重构后的模拟回复。', 'assistant');
-    }, 1000);
+    isTyping.value = true;
+
+    try {
+        // Lazy session initialization
+        if (!currentSessionId.value) {
+            const sessionResp = await fetch('/api/session', { method: 'POST' });
+            const sessionData = await sessionResp.json();
+            if (sessionData.session_id) {
+                currentSessionId.value = sessionData.session_id;
+                loadHistory();
+            } else {
+                throw new Error(sessionData.error || 'Failed to create session');
+            }
+        }
+
+        const response = await fetch('/api/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: message,
+                session_id: currentSessionId.value
+            }),
+        });
+
+        const data = await response.json();
+        appendMessage(data.response, 'assistant');
+    } catch (error) {
+        console.error('Error sending message:', error);
+        appendMessage('**系统错误：** ' + (error.message || '无法连接到后端服务器'), 'assistant');
+    } finally {
+        isTyping.value = false;
+    }
+};
+
+const handleRenameSession = async (session) => {
+    const newTitle = prompt('请输入新的会话标题：', session.title);
+    if (newTitle === null || newTitle.trim() === '' || newTitle === session.title) return;
+
+    try {
+        const response = await fetch(`/api/session/${session.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: newTitle.trim() })
+        });
+        
+        if (response.ok) {
+            loadHistory();
+        } else {
+            alert('重命名失败，请稍后重试。');
+        }
+    } catch (error) {
+        console.error('Error renaming session:', error);
+        alert('系统错误：无法重命名会话。');
+    }
+};
+
+const handleDeleteSession = async (session) => {
+    if (!confirm('确定要删除这个会话吗？此操作不可撤销。')) return;
+
+    try {
+        const response = await fetch(`/api/session/${session.id}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            if (session.id === currentSessionId.value) {
+                handleNewChat();
+            }
+            loadHistory();
+        } else {
+            alert('删除失败，请稍后重试。');
+        }
+    } catch (error) {
+        console.error('Error deleting session:', error);
+        alert('系统错误：无法删除会话。');
+    }
 };
 
 onMounted(() => {
     handleNewChat();
+    loadHistory();
 });
 </script>
 
@@ -55,6 +165,8 @@ onMounted(() => {
       @new-chat="handleNewChat"
       @select-session="handleSelectSession"
       @toggle-history="isHistoryCollapsed = !isHistoryCollapsed"
+      @rename-session="handleRenameSession"
+      @delete-session="handleDeleteSession"
     />
     
     <main class="main-container">
@@ -73,7 +185,7 @@ onMounted(() => {
         </div>
       </header>
       
-      <ChatBox :messages="messages" />
+      <ChatBox :messages="messages" :isTyping="isTyping" />
       
       <ChatInput @send="handleSendMessage" />
     </main>
