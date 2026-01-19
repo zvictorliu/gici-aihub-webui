@@ -34,3 +34,12 @@ coverage
 
 # Vitest
 __screenshots__/
+
+# temp files
+tmp/
+temp/
+
+# dotfiles
+.*
+!.gitignore
+!.python-version
