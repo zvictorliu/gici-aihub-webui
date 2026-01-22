@@ -49,7 +49,7 @@ const loadConfig = async () => {
     try {
         const response = await fetch('/api/config/providers');
         const data = await response.json();
-        providers.value = Array.isArray(data) ? data : (data.providers || []);
+        providers.value = data;
         
         // Set default values from first available provider/model if not set
         if (providers.value.length > 0) {
@@ -71,16 +71,9 @@ const loadHistory = async () => {
     if (!currentUser.value) return;
     
     try {
-        // 1. Get all sessions from primary backend
-        const response = await fetch('/api/session');
+        const response = await fetch(`/api/sessions?username=${encodeURIComponent(currentUser.value.username)}`);
         const data = await response.json();
-        const allSessions = Array.isArray(data) ? data : (data.sessions || []);
-        
-        // 2. Get allowed session IDs from auth backend
-        const allowedIds = await authService.getUserSessions(currentUser.value.username);
-        
-        // 3. Filter sessions
-        sessions.value = allSessions.filter(s => allowedIds.includes(s.id));
+        sessions.value = data;
     } catch (error) {
         console.error('Error loading history:', error);
     }
@@ -102,22 +95,11 @@ const handleSelectSession = async (sessionId) => {
     messages.value = [];
     
     try {
-        const response = await fetch(`/api/session/${sessionId}/message`);
+        const response = await fetch(`/api/sessions/${sessionId}/messages`);
         const data = await response.json();
         
         if (Array.isArray(data)) {
-            data.forEach(msg => {
-                const role = msg.info ? msg.info.role : msg.role;
-                const timestamp = msg.info && msg.info.time ? msg.info.time.created : null;
-                const textParts = (msg.parts || [])
-                    .filter(part => part.type === 'text')
-                    .map(part => part.text)
-                    .join('');
-                
-                if (textParts) {
-                    appendMessage(textParts, role === 'user' ? 'user' : 'assistant', timestamp);
-                }
-            });
+            messages.value = data;
         }
     } catch (error) {
         console.error('Error loading session messages:', error);
@@ -134,48 +116,37 @@ const handleSendMessage = async (message) => {
     try {
         // Lazy session initialization
         if (!currentSessionId.value) {
-            const sessionResp = await fetch('/api/session', { 
+            const sessionResp = await fetch('/api/sessions', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: 'GICI Assistant Session' })
+                body: JSON.stringify({ 
+                    username: currentUser.value.username,
+                    title: 'GICI Assistant Session' 
+                })
             });
             const sessionData = await sessionResp.json();
-            const sid = sessionData.id || sessionData.session_id;
-            if (sid) {
-                currentSessionId.value = sid;
-                // Sync new session to auth backend
-                await authService.addSession(currentUser.value.username, sid);
+            if (sessionData.id) {
+                currentSessionId.value = sessionData.id;
                 loadHistory();
             } else {
                 throw new Error(sessionData.error || 'Failed to create session');
             }
         }
 
-        const response = await fetch(`/api/session/${currentSessionId.value}/message`, {
+        const response = await fetch(`/api/sessions/${currentSessionId.value}/messages`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 providerID: modelConfig.value.providerID,
                 modelID: modelConfig.value.modelID,
                 mode: modelConfig.value.mode,
-                parts: [{ type: 'text', text: message }]
+                message: message
             }),
         });
 
         const data = await response.json();
-        if (data.parts) {
-            let textParts = data.parts
-                .filter(part => part.type === 'text')
-                .map(part => part.text)
-                .join('');
-            
-            if (!textParts) {
-                const hasToolCall = data.parts.some(part => part.type === 'tool_call');
-                textParts = hasToolCall 
-                    ? 'GICI 专家正在进行后台分析，请稍候。' 
-                    : '收到空回复。专家可能正在思考或需要更多上下文信息。';
-            }
-            appendMessage(textParts, 'assistant');
+        if (data.text) {
+            appendMessage(data.text, 'assistant');
         } else if (data.error) {
             throw new Error(data.error);
         } else {
@@ -194,7 +165,7 @@ const handleRenameSession = async (session) => {
     if (newTitle === null || newTitle.trim() === '' || newTitle === session.title) return;
 
     try {
-        const response = await fetch(`/api/session/${session.id}`, {
+        const response = await fetch(`/api/sessions/${session.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title: newTitle.trim() })
@@ -215,14 +186,11 @@ const handleDeleteSession = async (session) => {
     if (!confirm('确定要删除这个会话吗？此操作不可撤销。')) return;
 
     try {
-        const response = await fetch(`/api/session/${session.id}`, {
+        const response = await fetch(`/api/sessions/${session.id}?username=${encodeURIComponent(currentUser.value.username)}`, {
             method: 'DELETE'
         });
         
         if (response.ok) {
-            // Also remove from auth backend
-            await authService.removeSession(currentUser.value.username, session.id);
-            
             if (session.id === currentSessionId.value) {
                 handleNewChat();
             }

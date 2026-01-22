@@ -24,13 +24,11 @@ GICI 助手 - GNSS/INS 组合导航专家 (Vue 3 + Vite)
 | 变量名 | 说明 | 默认值 | 关联后端 |
 | :--- | :--- | :--- | :--- |
 | `VITE_PORT` | 开发服务器端口 | `5173` | - |
-| `VITE_API_BASE_URL` | OpenCode 服务器地址 | `http://127.0.0.1:5000` | 主后端 (AI 业务) |
-| `VITE_AUTH_API_URL` | 用户管理后端地址 | `http://127.0.0.1:8000` | 第二后端 (认证) |
+| `VITE_AUTH_API_URL` | 后端服务地址 | `http://127.0.0.1:8000` | 统一后端 |
 
 示例 `frontend/.env.local`:
 ```env
 VITE_PORT=5173
-VITE_API_BASE_URL=http://localhost:5000
 VITE_AUTH_API_URL=http://localhost:8000
 ```
 
@@ -48,14 +46,30 @@ npm run dev
 npm run build
 ```
 
-### 3. OpenCode 部署 (核心 AI 引擎)
+### 3. OpenCode 部署 (AI 引擎)
 
-OpenCode 服务器负责处理核心 AI 业务逻辑及知识库问答。
+OpenCode 服务器负责处理核心 AI 业务逻辑。
 
 ```bash
 # 确保已安装 opencode 工具
 opencode serve --host 127.0.0.1 --port 5000
 ```
+- **注意**: 后端服务将代理对此服务的请求。
+
+### 4. 后端部署 (统一入口)
+
+负责用户管理及 AI 业务代理。
+
+#### 服务配置
+在 `backend/` 目录下创建 `.env` 文件：
+```env
+# ./backend/.env
+HOST=127.0.0.1
+PORT=8000
+DEBUG=True
+OPENCODE_URL=http://127.0.0.1:5000
+```
+
 - **配置**: 确保前端 `VITE_API_BASE_URL` 指向此服务的地址。
 - **功能**: 提供 `/api` 路径下的 AI 能力支持。
 
