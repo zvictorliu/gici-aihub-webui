@@ -1,4 +1,6 @@
 <script setup>
+import { appConfig } from '../config/appConfig';
+
 const props = defineProps({
   sessions: Array,
   currentSessionId: String,
@@ -12,8 +14,8 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="logo">
-        <i class="fa-solid fa-satellite-dish" style="font-size: 24px; color: #38BDF8;"></i>
-        <span>GICI AIHUB</span>
+        <i :class="appConfig.ui.logoIcon" :style="{ fontSize: '24px', color: appConfig.ui.logoColor }"></i>
+        <span>{{ appConfig.app.title }}</span>
       </div>
     </div>
     
@@ -65,7 +67,7 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
           <span>偏好设置</span>
         </button>
         <a 
-          href="https://doc.weixin.qq.com/doc/w3_AZ0Axwa3AKACNFQxSoeM6QRaiGcFE?scode=AMoAdQdXAAwLcbRc0FAZ0Axwa3AKA" 
+          :href="appConfig.links.helpDocUrl" 
           target="_blank" 
           rel="noopener noreferrer"
           class="nav-item"
@@ -78,7 +80,7 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
     
     <div class="sidebar-footer">
       <a 
-        href="https://github.com/zvictorliu/gici-aihub-webui.git" 
+        :href="appConfig.links.githubRepo" 
         target="_blank" 
         rel="noopener noreferrer"
         class="github-link"
@@ -86,7 +88,7 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
       >
         <i class="fa-brands fa-github" style="font-size: 16px;"></i>
       </a>
-      <span>© 2026 GICI-aihub</span>
+      <span>{{ appConfig.app.shortCopyright }}</span>
       <span>All Rights Reserved</span>
     </div>
   </aside>

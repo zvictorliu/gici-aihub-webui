@@ -10,8 +10,9 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Path to the users JSON file
-USERS_FILE = Path(__file__).parent / "users.json"
+# Paths
+BACKEND_DIR = Path(__file__).parent
+USERS_FILE = BACKEND_DIR / "users.json"
 OPENCODE_URL = os.getenv("OPENCODE_URL", "http://127.0.0.1:5000")
 
 
@@ -165,7 +166,7 @@ def get_sessions():
 def create_session():
     data = request.json
     username = data.get("username")
-    title = data.get("title", "GICI Assistant Session")
+    title = data.get("title", "New Chat Session")
 
     if not username:
         return jsonify({"error": "Missing username"}), 400
@@ -253,9 +254,7 @@ def send_session_message(session_id):
         if not text:
             has_tool_call = any(p.get("type") == "tool_call" for p in parts)
             text = (
-                "GICI 专家正在进行后台分析，请稍候。"
-                if has_tool_call
-                else "收到空回复。"
+                "AI 专家正在进行后台分析，请稍候。" if has_tool_call else "收到空回复。"
             )
 
         return jsonify({"text": text})

@@ -7,6 +7,7 @@ import ModelSelector from './components/ModelSelector.vue';
 import Login from './components/Login.vue';
 import Register from './components/Register.vue';
 import { authService } from './utils/auth';
+import { appConfig } from './config/appConfig';
 
 const currentUser = ref(null);
 const authPage = ref('login'); // 'login' or 'register'
@@ -82,7 +83,7 @@ const loadHistory = async () => {
 const handleNewChat = () => {
     currentSessionId.value = null;
     messages.value = [{
-        text: '您好！我是您的 **GICI-lib 知识库助手**。我专注于 GNSS/INS 组合导航、RTK 定位以及传感器融合技术。今天有什么我可以帮您的吗？',
+        text: appConfig.assistant.welcomeMessage,
         sender: 'assistant',
         timestamp: new Date().toISOString()
     }];
@@ -121,7 +122,7 @@ const handleSendMessage = async (message) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     username: currentUser.value.username,
-                    title: 'GICI Assistant Session' 
+                    title: appConfig.assistant.defaultSessionTitle 
                 })
             });
             const sessionData = await sessionResp.json();
@@ -205,6 +206,7 @@ const handleDeleteSession = async (session) => {
 };
 
 onMounted(() => {
+    document.title = appConfig.app.title;
     currentUser.value = authService.getCurrentUser();
     handleNewChat();
     if (currentUser.value) {
@@ -242,7 +244,7 @@ onMounted(() => {
     <main class="main-container">
       <header class="app-header">
         <div class="header-info">
-          <h1>GICI 知识库智能助手</h1>
+          <h1>{{ appConfig.app.headerTitle }}</h1>
           <p>欢迎, {{ currentUser.username }}</p>
         </div>
         <div class="header-actions">

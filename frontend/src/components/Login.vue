@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { authService } from '../utils/auth';
+import { appConfig } from '../config/appConfig';
 
 const emit = defineEmits(['login-success', 'go-to-register']);
 
@@ -22,7 +23,7 @@ const handleLogin = async () => {
   <div class="auth-container">
     <div class="auth-card animate-fade-in">
       <h2>欢迎回来</h2>
-      <p class="subtitle">登录您的 GICI-AIHUB 账户</p>
+      <p class="subtitle">{{ appConfig.auth.loginSubtitle }}</p>
       
       <form @submit.prevent="handleLogin" class="auth-form">
         <div class="form-group">

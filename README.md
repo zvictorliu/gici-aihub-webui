@@ -102,6 +102,42 @@ pip install -r pyproject.toml
 python main.py
 ```
 
+## 自定义与复用
+
+本项目支持通过简单的配置快速自定义界面，实现快速复用：
+
+### 1. 统一配置 (UI 与文案)
+修改项目根目录下的 `config/appConfig.toml` 文件，即可自定义界面上的所有名称、标题、欢迎语、图标、链接和版权信息。
+
+配置文件结构示例：
+```toml
+[app]
+title = "应用标题"
+headerTitle = "页眉标题"
+copyright = "版权信息"
+
+[ui]
+logoIcon = "fa-solid fa-robot" # FontAwesome 图标
+logoColor = "#38BDF8"         # 图标颜色
+
+[assistant]
+name = "助手名称"
+welcomeMessage = "欢迎语 (支持 Markdown)"
+chatInputPlaceholder = "输入框占位符..."
+
+[auth]
+loginSubtitle = "登录页副标题"
+registerSubtitle = "注册页副标题"
+
+[links]
+githubRepo = "GitHub 仓库链接"
+helpDocUrl = "帮助文档链接"
+```
+
+### 2. 后端逻辑
+后端已实现中立化，不包含任何品牌相关的硬编码。它通过 API 接收前端传递的配置（如会话标题），从而保持核心逻辑的纯粹与通用。
+
+
 ---
 
 ## 技术架构

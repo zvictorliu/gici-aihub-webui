@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { authService } from '../utils/auth';
+import { appConfig } from '../config/appConfig';
 
 const emit = defineEmits(['register-success', 'go-to-login']);
 
@@ -29,7 +30,7 @@ const handleRegister = async () => {
   <div class="auth-container">
     <div class="auth-card animate-fade-in">
       <h2>创建账户</h2>
-      <p class="subtitle">加入 GICI 智能知识库</p>
+      <p class="subtitle">{{ appConfig.auth.registerSubtitle }}</p>
       
       <form @submit.prevent="handleRegister" class="auth-form">
         <div class="form-group">

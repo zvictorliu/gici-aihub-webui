@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue';
+import { appConfig } from '../config/appConfig';
 
 const emit = defineEmits(['send']);
 const message = ref('');
@@ -18,7 +19,7 @@ const handleSend = () => {
       <input 
         v-model="message" 
         type="text" 
-        placeholder="输入关于 GICI-lib 的问题..." 
+        :placeholder="appConfig.assistant.chatInputPlaceholder" 
         autocomplete="off"
         @keypress.enter.prevent="handleSend"
       >
@@ -29,14 +30,14 @@ const handleSend = () => {
     <p class="input-hint">按 Enter 键发送。描述越详细（如传感器型号或具体算法），回答越准确。</p>
     <div class="footer-info">
       <a 
-        href="https://github.com/zvictorliu/gici-aihub-webui.git" 
+        :href="appConfig.links.githubRepo" 
         target="_blank" 
         rel="noopener noreferrer"
         class="github-link"
       >
         <i class="fa-brands fa-github" style="font-size: 14px;"></i>
       </a>
-      <p class="copyright">© 2026 GICI-aihub All Rights Reserved</p>
+      <p class="copyright">{{ appConfig.app.copyright }}</p>
     </div>
   </div>
 </template>

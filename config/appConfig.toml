@@ -1,0 +1,23 @@
+[app]
+title = "GICI AIHUB"
+headerTitle = "GICI 知识库智能助手"
+copyright = "© 2026 GICI-aihub All Rights Reserved"
+shortCopyright = "© 2026 GICI-aihub"
+
+[ui]
+logoIcon = "fa-solid fa-satellite-dish"
+logoColor = "#38BDF8"
+
+[assistant]
+name = "GICI-lib 知识库助手"
+welcomeMessage = "您好！我是您的 **GICI-lib 知识库助手**。我专注于 GNSS/INS 组合导航、RTK 定位以及传感器融合技术。今天有什么我可以帮您的吗？"
+defaultSessionTitle = "GICI Assistant Session"
+chatInputPlaceholder = "输入关于 GICI-lib 的问题..."
+
+[auth]
+loginSubtitle = "登录您的 GICI-AIHUB 账户"
+registerSubtitle = "加入 GICI 智能知识库"
+
+[links]
+githubRepo = "https://github.com/zvictorliu/gici-aihub-webui.git"
+helpDocUrl = "https://doc.weixin.qq.com/doc/w3_AZ0Axwa3AKACNFQxSoeM6QRaiGcFE?scode=AMoAdQdXAAwLcbRc0FAZ0Axwa3AKA"
