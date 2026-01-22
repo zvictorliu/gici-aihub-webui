@@ -19,7 +19,7 @@ GICI 助手 - GNSS/INS 组合导航专家 (Vue 3 + Vite)
 ### 2. 前端部署 (aihub-web-vue)
 
 #### 配置环境变量
-在项目根目录下创建 `.env.local` 文件，配置后端服务的访问地址：
+在 `frontend/` 目录下创建 `.env.local` 文件，配置后端服务的访问地址：
 
 | 变量名 | 说明 | 默认值 | 关联后端 |
 | :--- | :--- | :--- | :--- |
@@ -27,7 +27,7 @@ GICI 助手 - GNSS/INS 组合导航专家 (Vue 3 + Vite)
 | `VITE_API_BASE_URL` | OpenCode 服务器地址 | `http://127.0.0.1:5000` | 主后端 (AI 业务) |
 | `VITE_AUTH_API_URL` | 用户管理后端地址 | `http://127.0.0.1:8000` | 第二后端 (认证) |
 
-示例 `.env.local`:
+示例 `frontend/.env.local`:
 ```env
 VITE_PORT=5173
 VITE_API_BASE_URL=http://localhost:5000
@@ -36,6 +36,8 @@ VITE_AUTH_API_URL=http://localhost:8000
 
 #### 安装与运行
 ```sh
+cd frontend
+
 # 安装依赖
 npm install
 
