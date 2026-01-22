@@ -24,12 +24,12 @@ GICI 助手 - GNSS/INS 组合导航专家 (Vue 3 + Vite)
 | 变量名 | 说明 | 默认值 | 关联后端 |
 | :--- | :--- | :--- | :--- |
 | `VITE_PORT` | 开发服务器端口 | `5173` | - |
-| `VITE_AUTH_API_URL` | 后端服务地址 | `http://127.0.0.1:8000` | 统一后端 |
+| `VITE_BASE_API_URL` | 后端服务地址 | `http://127.0.0.1:8000` | 统一后端 |
 
 示例 `frontend/.env.local`:
 ```env
 VITE_PORT=5173
-VITE_AUTH_API_URL=http://localhost:8000
+VITE_BASE_API_URL=http://localhost:8000
 ```
 
 #### 安装与运行
@@ -70,7 +70,7 @@ DEBUG=True
 OPENCODE_URL=http://127.0.0.1:5000
 ```
 
-- **配置**: 确保前端 `VITE_API_BASE_URL` 指向此服务的地址。
+- **配置**: 确保前端 `VITE_BASE_API_URL` 指向此服务的地址。
 - **功能**: 提供 `/api` 路径下的 AI 能力支持。
 
 ### 4. 后端部署 (用户管理/第二后端)
