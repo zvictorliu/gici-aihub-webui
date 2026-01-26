@@ -8,6 +8,10 @@ import Login from './components/Login.vue';
 import Register from './components/Register.vue';
 import { authService } from './utils/auth';
 import { appConfig } from './config/appConfig';
+import { Marked } from 'marked';
+import { markedHighlight } from "marked-highlight";
+import hljs from 'highlight.js';
+import 'highlight.js/styles/github-dark.css';
 
 const currentUser = ref(null);
 const authPage = ref('login'); // 'login' or 'register'
@@ -205,6 +209,139 @@ const handleDeleteSession = async (session) => {
     }
 };
 
+const handleExportHTML = () => {
+    if (messages.value.length === 0) {
+        alert('当前没有对话内容可以导出。');
+        return;
+    }
+
+    const currentSession = sessions.value.find(s => s.id === currentSessionId.value);
+    const sessionTitle = currentSession ? currentSession.title : '当前对话';
+
+    const marked = new Marked(
+        markedHighlight({
+            langPrefix: 'hljs language-',
+            highlight(code, lang) {
+                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                return hljs.highlight(code, { language }).value;
+            }
+        })
+    );
+
+    let htmlContent = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${sessionTitle} - 对话导出</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <style>
+        :root {
+            --primary: #0F172A;
+            --background: #F8FAFC;
+            --text-primary: #020617;
+            --text-secondary: #475569;
+            --message-user: #0369A1;
+            --message-assistant: #F1F5F9;
+            --border: #E2E8F0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background-color: var(--background);
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .header {
+            margin-bottom: 40px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+        .message {
+            margin-bottom: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+        .message-content {
+            padding: 12px 20px;
+            border-radius: 16px;
+            max-width: 85%;
+            word-wrap: break-word;
+        }
+        .user { align-items: flex-end; }
+        .user .message-content {
+            background-color: var(--message-user);
+            color: white;
+            border-bottom-right-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .assistant { align-items: flex-start; }
+        .assistant .message-content {
+            background-color: var(--message-assistant);
+            color: var(--text-primary);
+            border-bottom-left-radius: 4px;
+            border: 1px solid var(--border);
+        }
+        .meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        pre {
+            background: #1e293b;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9em;
+        }
+        p { margin-bottom: 8px; }
+        p:last-child { margin-bottom: 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>${sessionTitle}</h1>
+        <p>导出时间: ${new Date().toLocaleString()}</p>
+    </div>
+    <div class="conversation">
+    `;
+
+    messages.value.forEach(msg => {
+        const content = msg.sender === 'assistant' ? marked.parse(msg.text) : msg.text;
+        const time = new Date(msg.timestamp).toLocaleString();
+        
+        htmlContent += `
+        <div class="message ${msg.sender}">
+            <div class="message-content">${msg.sender === 'assistant' ? content : msg.text}</div>
+            <div class="meta">${msg.sender === 'assistant' ? '助手' : '用户'} · ${time}</div>
+        </div>
+        `;
+    });
+
+    htmlContent += `
+    </div>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-history-${new Date().getTime()}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
+
 onMounted(() => {
     document.title = appConfig.app.title;
     currentUser.value = authService.getCurrentUser();
@@ -248,6 +385,9 @@ onMounted(() => {
           <p>欢迎, {{ currentUser.username }}</p>
         </div>
         <div class="header-actions">
+          <button class="icon-btn" title="导出对话" @click="handleExportHTML">
+            <i class="fa-solid fa-download" style="font-size: 20px;"></i>
+          </button>
           <button class="icon-btn" title="系统状态">
             <i class="fa-solid fa-chart-line" style="font-size: 20px;"></i>
           </button>
