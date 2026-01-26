@@ -42,13 +42,14 @@ const handleLogout = () => {
     authPage.value = 'login';
 };
 
-const appendMessage = (text, sender, timestamp, providerID, modelID) => {
+const appendMessage = (text, sender, timestamp, providerID, modelID, isError = false) => {
     messages.value.push({
         text,
         sender,
         timestamp: timestamp || new Date().toISOString(),
         providerID,
-        modelID
+        modelID,
+        isError
     });
 };
 
@@ -160,9 +161,12 @@ const handleSendMessage = async (message) => {
 
         const data = await response.json();
         if (data.text) {
-            appendMessage(data.text, 'assistant', data.timestamp, data.providerID, data.modelID);
+            appendMessage(data.text, 'assistant', data.timestamp, data.providerID, data.modelID, data.isError);
         } else if (data.error) {
-            throw new Error(data.error);
+            const errorMsg = typeof data.error === 'object' 
+                ? (data.error.message || JSON.stringify(data.error)) 
+                : data.error;
+            throw new Error(errorMsg);
         } else {
             throw new Error('Unexpected response format from server');
         }
@@ -295,6 +299,17 @@ const handleExportHTML = () => {
             border-bottom-left-radius: 4px;
             border: 1px solid var(--border);
         }
+        .error .message-content {
+            border-color: #f87171;
+            background-color: #fef2f2;
+            color: #991b1b;
+        }
+        .error-indicator {
+            color: #ef4444;
+            font-weight: 600;
+            font-size: 0.75rem;
+            margin-right: 8px;
+        }
         .meta {
             font-size: 0.75rem;
             color: var(--text-secondary);
@@ -320,6 +335,7 @@ const handleExportHTML = () => {
             font-size: 0.9em;
         }
         p { margin-bottom: 8px; }
+        p:first-child { margin-top: 0; }
         p:last-child { margin-bottom: 0; }
     </style>
 </head>
@@ -337,11 +353,15 @@ const handleExportHTML = () => {
         const modelInfo = msg.sender === 'assistant' && msg.modelID 
             ? `<span class="model-tag">${msg.providerID ? msg.providerID + ' / ' : ''}${msg.modelID}</span>` 
             : '';
+        const errorIndicator = msg.isError 
+            ? `<span class="error-indicator">⚠️ 服务异常</span>` 
+            : '';
         
         htmlContent += `
-        <div class="message ${msg.sender}">
+        <div class="message ${msg.sender} ${msg.isError ? 'error' : ''}">
             <div class="message-content">${msg.sender === 'assistant' ? content : msg.text}</div>
             <div class="meta">
+                ${errorIndicator}
                 ${modelInfo}
                 <span>${msg.sender === 'assistant' ? '助手' : '用户'} · ${time}</span>
             </div>

@@ -33,7 +33,7 @@ const formattedTime = computed(() => {
 </script>
 
 <template>
-  <div class="message animate-fade-in" :class="message.sender">
+  <div class="message animate-fade-in" :class="[message.sender, { 'error-msg': message.isError }]">
     <div 
       class="message-content" 
       v-if="message.sender === 'assistant'" 
@@ -44,6 +44,9 @@ const formattedTime = computed(() => {
       v-else
     >{{ message.text }}</div>
     <div class="message-meta">
+      <span v-if="message.isError" class="error-indicator">
+        <i class="fa-solid fa-triangle-exclamation"></i> 服务异常
+      </span>
       <span v-if="message.sender === 'assistant' && message.modelID" class="model-info">
         <i class="fa-solid fa-robot"></i> {{ message.providerID ? message.providerID + ' / ' : '' }}{{ message.modelID }}
       </span>
@@ -77,6 +80,20 @@ const formattedTime = computed(() => {
   color: var(--text-primary);
   border-bottom-left-radius: 4px;
   border: 1px solid var(--border);
+}
+
+.message.error-msg .message-content {
+  border-color: #f87171;
+  background-color: #fef2f2;
+  color: #991b1b;
+}
+
+.error-indicator {
+  color: #ef4444;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .message.user {
@@ -135,6 +152,10 @@ const formattedTime = computed(() => {
 
 :deep(p) {
   margin-bottom: 8px;
+}
+
+:deep(p:first-child) {
+  margin-top: 0;
 }
 
 :deep(p:last-child) {

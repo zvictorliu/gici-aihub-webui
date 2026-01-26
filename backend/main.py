@@ -227,6 +227,19 @@ def get_session_messages(session_id):
                         if part.get("type") == "text"
                     ]
                 )
+
+                # Handle messages with errors in history
+                is_error = False
+                if not text and info.get("error"):
+                    is_error = True
+                    error_info = info.get("error", {})
+                    error_msg = (
+                        error_info.get("data", {}).get("message")
+                        or error_info.get("message")
+                        or "AI 引擎返回错误"
+                    )
+                    text = f"**错误：** {error_msg}"
+
                 if text:
                     simplified.append(
                         {
@@ -235,6 +248,7 @@ def get_session_messages(session_id):
                             "timestamp": timestamp,
                             "providerID": provider_id,
                             "modelID": model_id,
+                            "isError": is_error,
                         }
                     )
 
@@ -277,12 +291,25 @@ def send_session_message(session_id):
         info = resp_data.get("info", {})
         timestamp = info.get("time", {}).get("created")
 
+        # Handle error messages from OpenCode (e.g., Authentication Fails, Model not found)
+        is_error = False
+        error_info = info.get("error", {})
+        if error_info:
+            is_error = True
+            error_msg = (
+                error_info.get("data", {}).get("message")
+                or error_info.get("message")
+                or "AI 引擎返回错误"
+            )
+            text = f"**错误：** {error_msg}"
+
         return jsonify(
             {
                 "text": text,
                 "timestamp": timestamp,
                 "providerID": info.get("providerID") or provider_id,
                 "modelID": info.get("modelID") or model_id,
+                "isError": is_error,
             }
         )
     except Exception as e:
