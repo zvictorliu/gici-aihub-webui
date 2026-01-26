@@ -251,8 +251,7 @@ def send_session_message(session_id):
         provider_id = data.get("providerID")
         model_id = data.get("modelID")
         opencode_payload = {
-            "providerID": provider_id,
-            "modelID": model_id,
+            "model": {"providerID": provider_id, "modelID": model_id},
             "mode": data.get("mode"),
             "parts": [{"type": "text", "text": data.get("message")}],
         }

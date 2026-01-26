@@ -34,7 +34,12 @@ const selectedMode = computed({
 
 const availableModels = computed(() => {
   const provider = props.providers.find(p => p.id === selectedProvider.value);
-  return provider ? Object.values(provider.models) : [];
+  if (!provider || !provider.models) return [];
+  return Object.entries(provider.models).map(([id, model]) => {
+    return typeof model === 'object' 
+      ? { ...model, id } 
+      : { name: model, id };
+  });
 });
 </script>
 

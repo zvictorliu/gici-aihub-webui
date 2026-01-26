@@ -126,6 +126,7 @@ const handleSendMessage = async (message) => {
         // Store the config used for this message
         const currentProviderID = modelConfig.value.providerID;
         const currentModelID = modelConfig.value.modelID;
+        const currentMode = modelConfig.value.mode;
 
         // Lazy session initialization
         if (!currentSessionId.value) {
@@ -152,6 +153,7 @@ const handleSendMessage = async (message) => {
             body: JSON.stringify({
                 providerID: currentProviderID,
                 modelID: currentModelID,
+                mode: currentMode,
                 message: message
             }),
         });
