@@ -43,7 +43,12 @@ const formattedTime = computed(() => {
       class="message-content" 
       v-else
     >{{ message.text }}</div>
-    <div class="message-meta">{{ formattedTime }}</div>
+    <div class="message-meta">
+      <span v-if="message.sender === 'assistant' && message.modelID" class="model-info">
+        <i class="fa-solid fa-robot"></i> {{ message.providerID ? message.providerID + ' / ' : '' }}{{ message.modelID }}
+      </span>
+      <span class="time">{{ formattedTime }}</span>
+    </div>
   </div>
 </template>
 
@@ -85,13 +90,25 @@ const formattedTime = computed(() => {
 }
 
 .message-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 0.75rem;
   color: var(--text-secondary);
   margin: 0 4px;
 }
 
 .message.user .message-meta {
-  text-align: right;
+  justify-content: flex-end;
+}
+
+.model-info {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 :deep(pre) {

@@ -205,8 +205,21 @@ def get_session_messages(session_id):
         simplified = []
         if isinstance(raw_messages, list):
             for msg in raw_messages:
-                role = msg.get("info", {}).get("role") or msg.get("role")
-                timestamp = msg.get("info", {}).get("time", {}).get("created")
+                info = msg.get("info", {})
+                role = info.get("role") or msg.get("role")
+                timestamp = info.get("time", {}).get("created")
+
+                # Extract providerID and modelID
+                provider_id = info.get("providerID")
+                model_id = info.get("modelID")
+
+                # Sometimes it might be nested in a model object for user messages?
+                # According to message.json: "model": { "providerID": "minimax-cn", "modelID": "MiniMax-M2.1" }
+                if not provider_id and "model" in info:
+                    provider_id = info["model"].get("providerID")
+                if not model_id and "model" in info:
+                    model_id = info["model"].get("modelID")
+
                 text = "".join(
                     [
                         part.get("text", "")
@@ -220,6 +233,8 @@ def get_session_messages(session_id):
                             "text": text,
                             "sender": "user" if role == "user" else "assistant",
                             "timestamp": timestamp,
+                            "providerID": provider_id,
+                            "modelID": model_id,
                         }
                     )
 
@@ -233,9 +248,11 @@ def send_session_message(session_id):
     data = request.json
     try:
         # Prepare request for OpenCode
+        provider_id = data.get("providerID")
+        model_id = data.get("modelID")
         opencode_payload = {
-            "providerID": data.get("providerID"),
-            "modelID": data.get("modelID"),
+            "providerID": provider_id,
+            "modelID": model_id,
             "mode": data.get("mode"),
             "parts": [{"type": "text", "text": data.get("message")}],
         }
@@ -257,7 +274,18 @@ def send_session_message(session_id):
                 "AI 专家正在进行后台分析，请稍候。" if has_tool_call else "收到空回复。"
             )
 
-        return jsonify({"text": text})
+        # Try to get timestamp and confirm IDs from response if available
+        info = resp_data.get("info", {})
+        timestamp = info.get("time", {}).get("created")
+
+        return jsonify(
+            {
+                "text": text,
+                "timestamp": timestamp,
+                "providerID": info.get("providerID") or provider_id,
+                "modelID": info.get("modelID") or model_id,
+            }
+        )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

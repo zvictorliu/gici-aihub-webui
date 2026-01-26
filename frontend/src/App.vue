@@ -42,11 +42,13 @@ const handleLogout = () => {
     authPage.value = 'login';
 };
 
-const appendMessage = (text, sender, timestamp) => {
+const appendMessage = (text, sender, timestamp, providerID, modelID) => {
     messages.value.push({
         text,
         sender,
-        timestamp: timestamp || new Date().toISOString()
+        timestamp: timestamp || new Date().toISOString(),
+        providerID,
+        modelID
     });
 };
 
@@ -89,7 +91,9 @@ const handleNewChat = () => {
     messages.value = [{
         text: appConfig.assistant.welcomeMessage,
         sender: 'assistant',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        providerID: '',
+        modelID: 'System'
     }];
 };
 
@@ -119,6 +123,10 @@ const handleSendMessage = async (message) => {
     isTyping.value = true;
 
     try {
+        // Store the config used for this message
+        const currentProviderID = modelConfig.value.providerID;
+        const currentModelID = modelConfig.value.modelID;
+
         // Lazy session initialization
         if (!currentSessionId.value) {
             const sessionResp = await fetch('/api/sessions', { 
@@ -142,16 +150,15 @@ const handleSendMessage = async (message) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                providerID: modelConfig.value.providerID,
-                modelID: modelConfig.value.modelID,
-                mode: modelConfig.value.mode,
+                providerID: currentProviderID,
+                modelID: currentModelID,
                 message: message
             }),
         });
 
         const data = await response.json();
         if (data.text) {
-            appendMessage(data.text, 'assistant');
+            appendMessage(data.text, 'assistant', data.timestamp, data.providerID, data.modelID);
         } else if (data.error) {
             throw new Error(data.error);
         } else {
@@ -290,6 +297,14 @@ const handleExportHTML = () => {
             font-size: 0.75rem;
             color: var(--text-secondary);
             margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .model-tag {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 2px 8px;
+            border-radius: 10px;
         }
         pre {
             background: #1e293b;
@@ -317,11 +332,17 @@ const handleExportHTML = () => {
     messages.value.forEach(msg => {
         const content = msg.sender === 'assistant' ? marked.parse(msg.text) : msg.text;
         const time = new Date(msg.timestamp).toLocaleString();
+        const modelInfo = msg.sender === 'assistant' && msg.modelID 
+            ? `<span class="model-tag">${msg.providerID ? msg.providerID + ' / ' : ''}${msg.modelID}</span>` 
+            : '';
         
         htmlContent += `
         <div class="message ${msg.sender}">
             <div class="message-content">${msg.sender === 'assistant' ? content : msg.text}</div>
-            <div class="meta">${msg.sender === 'assistant' ? '助手' : '用户'} · ${time}</div>
+            <div class="meta">
+                ${modelInfo}
+                <span>${msg.sender === 'assistant' ? '助手' : '用户'} · ${time}</span>
+            </div>
         </div>
         `;
     });
