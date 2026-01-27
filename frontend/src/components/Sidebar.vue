@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue';
 import { appConfig } from '../config/appConfig';
 
 const props = defineProps({
@@ -11,16 +12,68 @@ const props = defineProps({
 
 const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'rename-session', 'delete-session', 'select-workspace', 'create-workspace']);
 
+const showCreateModal = ref(false);
+const newWs = ref({
+  path: '',
+  id: ''
+});
+
 const handleNewWorkspace = () => {
-  const path = prompt('请输入新工作区的绝对路径：');
-  if (path && path.trim()) {
-    emit('create-workspace', path.trim());
+  showCreateModal.value = true;
+};
+
+const closeConfigModal = () => {
+  showCreateModal.value = false;
+  newWs.value = { path: '', id: '' };
+};
+
+const submitCreateWorkspace = () => {
+  if (!newWs.value.path.trim() || !newWs.value.id.trim()) {
+    alert('请填写完整信息');
+    return;
   }
+  if (!/^[a-zA-Z0-9_-]+$/.test(newWs.value.id.trim())) {
+    alert('ID 包含非法字符 (仅允许字母、数字、下划线和连字符)');
+    return;
+  }
+  emit('create-workspace', { 
+    path: newWs.value.path.trim(), 
+    id: newWs.value.id.trim() 
+  });
+  closeConfigModal();
 };
 </script>
 
 <template>
   <aside class="sidebar">
+    <!-- Workspace Create Modal -->
+    <div v-if="showCreateModal" class="modal-overlay">
+      <div class="modal-content animate-fade-in">
+        <h3>开设新工作区</h3>
+        <div class="form-group">
+          <label>工作区 ID</label>
+          <input 
+            v-model="newWs.id" 
+            placeholder="例如: gici-dev (仅限字母数字下划线)"
+            @keyup.enter="submitCreateWorkspace"
+          >
+          <small>ID 用于加载专属配置文件 (config/workspaces/ID.toml)</small>
+        </div>
+        <div class="form-group">
+          <label>绝对路径</label>
+          <input 
+            v-model="newWs.path" 
+            placeholder="例如: /home/user/project"
+            @keyup.enter="submitCreateWorkspace"
+          >
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="closeConfigModal">取消</button>
+          <button class="btn-confirm" @click="submitCreateWorkspace">确认创建</button>
+        </div>
+      </div>
+    </div>
+
     <div class="sidebar-header">
       <div class="logo">
         <i :class="appConfig.ui.logoIcon" :style="{ fontSize: '24px', color: appConfig.ui.logoColor }"></i>
@@ -47,6 +100,7 @@ const handleNewWorkspace = () => {
             <i class="fa-solid fa-folder-open"></i>
             <span class="workspace-name" :title="ws.path">
               {{ ws.name || ws.path.split('/').pop() || ws.path }}
+              <span v-if="ws.id && ws.id !== 'default'" class="id-tag">#{{ ws.id }}</span>
               <span v-if="ws.path === appConfig.app.default_directory" class="default-tag">(默认)</span>
             </span>
           </button>
@@ -213,6 +267,14 @@ const handleNewWorkspace = () => {
   font-weight: normal;
 }
 
+.id-tag {
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+  opacity: 0.8;
+}
+
 .empty-hint {
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.3);
@@ -354,6 +416,105 @@ const handleNewWorkspace = () => {
   color: rgba(255, 255, 255, 0.4);
   text-align: center;
   align-items: center;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: var(--secondary);
+  width: 400px;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-content h3 {
+  margin-bottom: 20px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: white;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 6px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: white;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.form-group input:focus {
+  border-color: var(--accent);
+}
+
+.form-group small {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.modal-actions button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-cancel {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.btn-confirm {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-confirm:hover {
+  filter: brightness(1.1);
 }
 
 .github-link {

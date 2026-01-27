@@ -1,0 +1,12 @@
+[app]
+title = "GICI 开发者模式"
+headerTitle = "GICI 核心开发工作区"
+
+[ui]
+logoIcon = "fa-solid fa-code"
+logoColor = "#FACC15"
+
+[assistant]
+name = "GICI 核心开发专家"
+welcomeMessage = "您好！检测到您已进入 **开发者专属工作区**。我已切换至底层代码分析模式，准备好为您调试 GICI-lib 源码或优化 RTK 算法了吗？"
+chatInputPlaceholder = "请输入开发相关的指令或代码疑问..."

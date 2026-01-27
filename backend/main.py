@@ -3,6 +3,7 @@ import json
 import os
 import requests
 import tomllib
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -15,22 +16,19 @@ app = Flask(__name__)
 BACKEND_DIR = Path(__file__).parent
 ROOT_DIR = BACKEND_DIR.parent
 USERS_FILE = BACKEND_DIR / "users.json"
-CONFIG_FILE = ROOT_DIR / "config" / "appConfig.toml"
+CONFIG_DIR = ROOT_DIR / "config"
+CONFIG_FILE = CONFIG_DIR / "appConfig.toml"
+WS_CONFIG_DIR = CONFIG_DIR / "workspaces"
 OPENCODE_URL = os.getenv("OPENCODE_URL", "http://127.0.0.1:5000")
 
-# Load config
+# Ensure workspace config dir exists
+WS_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+# Load base config
 with open(CONFIG_FILE, "rb") as f:
     app_config = tomllib.load(f)
 
 DEFAULT_DIRECTORY = app_config.get("app", {}).get("default_directory", "")
-
-
-def get_forward_headers():
-    headers = {}
-    workspace_path = request.headers.get("x-workspace-path") or DEFAULT_DIRECTORY
-    if workspace_path:
-        headers["x-opencode-directory"] = workspace_path
-    return headers
 
 
 def load_users():
@@ -48,156 +46,52 @@ def save_users(users):
         json.dump(users, f, indent=2, ensure_ascii=False)
 
 
-@app.route("/api/auth/register", methods=["POST"])
-def register():
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
-
-    if not username or not password:
-        return jsonify({"error": "用户名和密码不能为空"}), 400
-
-    users = load_users()
-    if any(u["username"] == username for u in users):
-        return jsonify({"error": "用户名已存在"}), 400
-
-    users.append({"username": username, "password": password})
-    save_users(users)
-    return jsonify({"success": True, "username": username})
-
-
-@app.route("/api/auth/login", methods=["POST"])
-def login():
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
-
-    users = load_users()
-    user = next(
-        (u for u in users if u["username"] == username and u["password"] == password),
-        None,
-    )
-
-    if not user:
-        return jsonify({"error": "用户名或密码错误"}), 401
-
-    return jsonify({"success": True, "username": username})
+def get_merged_config(workspace_id=None):
+    config = json.loads(json.dumps(app_config))  # Deep copy
+    if workspace_id:
+        ws_config_file = WS_CONFIG_DIR / f"{workspace_id}.toml"
+        if ws_config_file.exists():
+            with open(ws_config_file, "rb") as f:
+                ws_specific = tomllib.load(f)
+                for key, value in ws_specific.items():
+                    if (
+                        key in config
+                        and isinstance(config[key], dict)
+                        and isinstance(value, dict)
+                    ):
+                        config[key].update(value)
+                    else:
+                        config[key] = value
+    return config
 
 
-@app.route("/api/auth/add_session", methods=["POST"])
-def add_session():
-    data = request.json
-    username = data.get("username")
-    session_id = data.get("sessionId")
-
-    if not username or not session_id:
-        return jsonify({"error": "缺少参数"}), 400
-
-    users = load_users()
-    user = next((u for u in users if u["username"] == username), None)
-    if user:
-        if "sessions" not in user:
-            user["sessions"] = []
-        if session_id not in user["sessions"]:
-            user["sessions"].append(session_id)
-        save_users(users)
-        return jsonify({"success": True})
-    return jsonify({"error": "用户不存在"}), 404
-
-
-@app.route("/api/auth/user_sessions", methods=["GET"])
-def get_user_sessions():
-    username = request.args.get("username")
-    if not username:
-        return jsonify([]), 400
-
-    users = load_users()
-    user = next((u for u in users if u["username"] == username), None)
-    if user:
-        return jsonify(user.get("sessions", []))
-    return jsonify([])
-
-
-@app.route("/api/auth/workspaces", methods=["GET"])
-def get_user_workspaces():
-    username = request.args.get("username")
-    if not username:
-        return jsonify([]), 400
-
-    users = load_users()
-    user = next((u for u in users if u["username"] == username), None)
-    if user:
-        return jsonify(user.get("workspaces", []))
-    return jsonify([])
-
-
-@app.route("/api/auth/workspaces", methods=["POST"])
-def add_user_workspace():
-    data = request.json
-    username = data.get("username")
-    path = data.get("path")
-    name = data.get("name") or (path.split("/")[-1] if path else "New Workspace")
-
-    if not username or not path:
-        return jsonify({"error": "缺少参数"}), 400
-
-    users = load_users()
-    user = next((u for u in users if u["username"] == username), None)
-    if user:
-        if "workspaces" not in user:
-            user["workspaces"] = []
-        # Check if already exists
-        if not any(ws["path"] == path for ws in user["workspaces"]):
-            user["workspaces"].append({"path": path, "name": name})
-            save_users(users)
-        return jsonify({"success": True, "workspaces": user["workspaces"]})
-    return jsonify({"error": "用户不存在"}), 404
-
-
-@app.route("/api/auth/workspaces", methods=["DELETE"])
-def remove_user_workspace():
-    username = request.args.get("username")
-    path = request.args.get("path")
-
-    if not username or not path:
-        return jsonify({"error": "缺少参数"}), 400
-
-    users = load_users()
-    user = next((u for u in users if u["username"] == username), None)
-    if user and "workspaces" in user:
-        user["workspaces"] = [ws for ws in user["workspaces"] if ws["path"] != path]
-        save_users(users)
-        return jsonify({"success": True})
-    return jsonify({"error": "用户不存在"}), 404
-
-
-@app.route("/api/auth/remove_session", methods=["POST"])
-def remove_session():
-    data = request.json
-    username = data.get("username")
-    session_id = data.get("sessionId")
-
-    users = load_users()
-    user = next((u for u in users if u["username"] == username), None)
-    if user and "sessions" in user:
-        if session_id in user["sessions"]:
-            user["sessions"].remove(session_id)
-            save_users(users)
-        return jsonify({"success": True})
-    return jsonify({"error": "用户或会话不存在"}), 404
+def get_forward_headers():
+    headers = {}
+    workspace_path = request.headers.get("x-workspace-path") or DEFAULT_DIRECTORY
+    if workspace_path:
+        headers["x-opencode-directory"] = workspace_path
+    return headers
 
 
 @app.route("/api/config/providers", methods=["GET"])
 def get_providers():
+    workspace_id = request.headers.get("x-workspace-id")
+    current_config = get_merged_config(workspace_id)
+    # Note: If providers were in config, we'd use them here.
+    # For now, we still proxy to opencode, but we might need config for other UI elements.
     try:
         resp = requests.get(f"{OPENCODE_URL}/config/providers")
         data = resp.json()
         providers = data if isinstance(data, list) else data.get("providers", [])
-
-        # Return simplified provider list
         return jsonify(providers)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/config/ui", methods=["GET"])
+def get_ui_config():
+    workspace_id = request.headers.get("x-workspace-id")
+    return jsonify(get_merged_config(workspace_id))
 
 
 @app.route("/api/sessions", methods=["GET"])
@@ -451,15 +345,85 @@ def handle_session(session_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/auth/workspaces", methods=["GET"])
+def get_user_workspaces():
+    username = request.args.get("username")
+    if not username:
+        return jsonify([]), 400
+
+    users = load_users()
+    user = next((u for u in users if u["username"] == username), None)
+    if user:
+        return jsonify(user.get("workspaces", []))
+    return jsonify([])
+
+
+@app.route("/api/auth/workspaces", methods=["POST"])
+def add_user_workspace():
+    data = request.json
+    username = data.get("username")
+    path = data.get("path")
+    ws_id = data.get("id")
+    name = data.get("name") or (path.split("/")[-1] if path else "New Workspace")
+
+    if not username or not path or not ws_id:
+        return jsonify({"error": "缺少参数 (path, id)"}), 400
+
+    if not re.match(r"^[a-zA-Z0-9_-]+$", ws_id):
+        return jsonify(
+            {"error": "ID 包含非法字符 (仅允许字母、数字、下划线和连字符)"}
+        ), 400
+
+    users = load_users()
+    user = next((u for u in users if u["username"] == username), None)
+    if user:
+        if "workspaces" not in user:
+            user["workspaces"] = []
+        # Check if already exists
+        if not any(ws["id"] == ws_id for ws in user["workspaces"]):
+            user["workspaces"].append({"id": ws_id, "path": path, "name": name})
+            save_users(users)
+        return jsonify({"success": True, "workspaces": user["workspaces"]})
+    return jsonify({"error": "用户不存在"}), 404
+
+
+@app.route("/api/auth/workspaces", methods=["DELETE"])
+def remove_user_workspace():
+    username = request.args.get("username")
+    path = request.args.get("path")
+
+    if not username or not path:
+        return jsonify({"error": "缺少参数"}), 400
+
+    users = load_users()
+    user = next((u for u in users if u["username"] == username), None)
+    if user and "workspaces" in user:
+        user["workspaces"] = [ws for ws in user["workspaces"] if ws["path"] != path]
+        save_users(users)
+        return jsonify({"success": True})
+    return jsonify({"error": "用户不存在"}), 404
+
+
+@app.route("/api/config/active", methods=["GET"])
+def get_active_config():
+    workspace_id = request.args.get("workspace_id")
+    return jsonify(get_merged_config(workspace_id))
+
+
 @app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 def proxy(path):
     url = f"{OPENCODE_URL}/{path}"
 
     # Forward the request to the opencode server
     headers = {key: value for (key, value) in request.headers if key != "Host"}
-    workspace_path = request.headers.get("x-workspace-path")
+    workspace_path = request.headers.get("x-workspace-path") or DEFAULT_DIRECTORY
+    workspace_id = request.headers.get("x-workspace-id") or "default"
+
     if workspace_path:
         headers["x-opencode-directory"] = workspace_path
+
+    # Optionally forward ID if opencode server needs it,
+    # but the core requirement was directory mapping and local config override.
 
     resp = requests.request(
         method=request.method,

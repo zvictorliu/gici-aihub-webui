@@ -22,17 +22,30 @@ const sessions = ref([]);
 const providers = ref([]);
 const workspaces = ref([]);
 const currentWorkspacePath = ref(localStorage.getItem('currentWorkspacePath') || '');
+const currentWorkspaceId = ref(localStorage.getItem('currentWorkspaceId') || '');
 
 const allWorkspaces = computed(() => {
     const list = [...workspaces.value];
     const defaultPath = appConfig.app.default_directory;
     if (defaultPath && !list.find(ws => ws.path === defaultPath)) {
-        list.unshift({ path: defaultPath, name: '默认工作区' });
+        list.unshift({ path: defaultPath, id: 'default', name: '默认工作区' });
     }
     return list;
 });
 
 const effectiveWorkspacePath = computed(() => currentWorkspacePath.value || appConfig.app.default_directory);
+const effectiveWorkspaceId = computed(() => currentWorkspaceId.value || 'default');
+
+const refreshConfig = async () => {
+    try {
+        const response = await fetch(`/api/config/active?workspace_id=${effectiveWorkspaceId.value}`);
+        const data = await response.json();
+        // Update appConfig object properties
+        Object.assign(appConfig, data);
+    } catch (error) {
+        console.error('Error refreshing config:', error);
+    }
+};
 
 const loadWorkspaces = async () => {
     if (!currentUser.value) return;
@@ -44,21 +57,31 @@ const loadWorkspaces = async () => {
         // If current workspace is not in the list anymore, clear it
         if (currentWorkspacePath.value && !workspaces.value.find(ws => ws.path === currentWorkspacePath.value)) {
             currentWorkspacePath.value = '';
+            currentWorkspaceId.value = '';
             localStorage.removeItem('currentWorkspacePath');
+            localStorage.removeItem('currentWorkspaceId');
         }
+        await refreshConfig();
     } catch (error) {
         console.error('Error loading workspaces:', error);
     }
 };
 
-const handleSelectWorkspace = (path) => {
+const handleSelectWorkspace = async (path) => {
+    const ws = allWorkspaces.value.find(w => w.path === path);
     currentWorkspacePath.value = path;
+    currentWorkspaceId.value = ws ? ws.id : '';
     localStorage.setItem('currentWorkspacePath', path);
+    localStorage.setItem('currentWorkspaceId', currentWorkspaceId.value);
+    
+    // 必须等待配置刷新完成，否则 handleNewChat 会使用旧的 welcomeMessage
+    await refreshConfig();
+    
     handleNewChat();
     loadHistory();
 };
 
-const handleCreateWorkspace = async (path) => {
+const handleCreateWorkspace = async (payload) => {
     if (!currentUser.value) return;
     
     try {
@@ -67,13 +90,14 @@ const handleCreateWorkspace = async (path) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 username: currentUser.value.username,
-                path: path
+                path: payload.path,
+                id: payload.id
             })
         });
         const data = await response.json();
         if (data.success) {
             workspaces.value = data.workspaces;
-            handleSelectWorkspace(path);
+            handleSelectWorkspace(payload.path);
         } else {
             alert('创建工作区失败: ' + (data.error || '未知错误'));
         }
@@ -82,6 +106,7 @@ const handleCreateWorkspace = async (path) => {
         alert('系统错误: 无法保存工作区');
     }
 };
+
 
 const modelConfig = ref({
     providerID: '',
@@ -144,8 +169,9 @@ const loadHistory = async () => {
     
     try {
         const headers = {};
-        if (currentWorkspacePath.value) {
-            headers['x-workspace-path'] = currentWorkspacePath.value;
+        if (effectiveWorkspacePath.value) {
+            headers['x-workspace-path'] = effectiveWorkspacePath.value;
+            headers['x-workspace-id'] = effectiveWorkspaceId.value;
         }
         
         const response = await fetch(`/api/sessions?username=${encodeURIComponent(currentUser.value.username)}`, {
@@ -177,8 +203,9 @@ const handleSelectSession = async (sessionId) => {
     
     try {
         const headers = {};
-        if (currentWorkspacePath.value) {
-            headers['x-workspace-path'] = currentWorkspacePath.value;
+        if (effectiveWorkspacePath.value) {
+            headers['x-workspace-path'] = effectiveWorkspacePath.value;
+            headers['x-workspace-id'] = effectiveWorkspaceId.value;
         }
         
         const response = await fetch(`/api/sessions/${sessionId}/messages`, {
@@ -208,8 +235,9 @@ const handleSendMessage = async (message) => {
         const currentMode = modelConfig.value.mode;
 
         const commonHeaders = { 'Content-Type': 'application/json' };
-        if (currentWorkspacePath.value) {
-            commonHeaders['x-workspace-path'] = currentWorkspacePath.value;
+        if (effectiveWorkspacePath.value) {
+            commonHeaders['x-workspace-path'] = effectiveWorkspacePath.value;
+            commonHeaders['x-workspace-id'] = effectiveWorkspaceId.value;
         }
 
         // Lazy session initialization
@@ -267,8 +295,9 @@ const handleRenameSession = async (session) => {
 
     try {
         const headers = { 'Content-Type': 'application/json' };
-        if (currentWorkspacePath.value) {
-            headers['x-workspace-path'] = currentWorkspacePath.value;
+        if (effectiveWorkspacePath.value) {
+            headers['x-workspace-path'] = effectiveWorkspacePath.value;
+            headers['x-workspace-id'] = effectiveWorkspaceId.value;
         }
         
         const response = await fetch(`/api/sessions/${session.id}`, {
@@ -293,9 +322,11 @@ const handleDeleteSession = async (session) => {
 
     try {
         const headers = {};
-        if (currentWorkspacePath.value) {
-            headers['x-workspace-path'] = currentWorkspacePath.value;
+        if (effectiveWorkspacePath.value) {
+            headers['x-workspace-path'] = effectiveWorkspacePath.value;
+            headers['x-workspace-id'] = effectiveWorkspaceId.value;
         }
+
         
         const response = await fetch(`/api/sessions/${session.id}?username=${encodeURIComponent(currentUser.value.username)}`, {
             method: 'DELETE',
@@ -479,14 +510,19 @@ const handleExportHTML = () => {
     URL.revokeObjectURL(url);
 };
 
-onMounted(() => {
+onMounted(async () => {
     document.title = appConfig.app.title;
     currentUser.value = authService.getCurrentUser();
-    handleNewChat();
+    
     if (currentUser.value) {
+        // 先加载工作区和配置
+        await loadWorkspaces();
+        // 然后再执行新对话，确保欢迎语是基于当前工作区配置的
+        handleNewChat();
         loadHistory();
-        loadWorkspaces();
         loadConfig();
+    } else {
+        handleNewChat();
     }
 });
 </script>
