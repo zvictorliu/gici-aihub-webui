@@ -4,10 +4,19 @@ import { appConfig } from '../config/appConfig';
 const props = defineProps({
   sessions: Array,
   currentSessionId: String,
-  isCollapsed: Boolean
+  isCollapsed: Boolean,
+  workspaces: Array,
+  currentWorkspacePath: String
 });
 
-const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'rename-session', 'delete-session']);
+const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'rename-session', 'delete-session', 'select-workspace', 'create-workspace']);
+
+const handleNewWorkspace = () => {
+  const path = prompt('请输入新工作区的绝对路径：');
+  if (path && path.trim()) {
+    emit('create-workspace', path.trim());
+  }
+};
 </script>
 
 <template>
@@ -20,6 +29,33 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
     </div>
     
     <div class="sidebar-content">
+      <div class="nav-group">
+        <div class="nav-header">
+          <span class="nav-label">工作区</span>
+          <button class="add-btn" title="新建工作区" @click="handleNewWorkspace">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+        </div>
+        <div class="workspace-list">
+          <button 
+            v-for="ws in workspaces" 
+            :key="ws.path"
+            class="nav-item workspace-item" 
+            :class="{ active: ws.path === currentWorkspacePath }"
+            @click="emit('select-workspace', ws.path)"
+          >
+            <i class="fa-solid fa-folder-open"></i>
+            <span class="workspace-name" :title="ws.path">
+              {{ ws.name || ws.path.split('/').pop() || ws.path }}
+              <span v-if="ws.path === appConfig.app.default_directory" class="default-tag">(默认)</span>
+            </span>
+          </button>
+          <div v-if="workspaces.length === 0" class="empty-hint">
+            点击 + 开设新工作区
+          </div>
+        </div>
+      </div>
+
       <div class="nav-group">
         <span class="nav-label">常规</span>
         <button 
@@ -134,7 +170,54 @@ const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'renam
   justify-content: space-between;
   padding-right: 12px;
   margin-bottom: 12px;
+}
+
+.add-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.add-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.workspace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workspace-item {
+  padding: 8px 12px;
+}
+
+.workspace-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.default-tag {
+  font-size: 0.7rem;
+  opacity: 0.6;
+  font-weight: normal;
+}
+
+.empty-hint {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
+  padding-left: 12px;
+  font-style: italic;
 }
 
 .nav-label {

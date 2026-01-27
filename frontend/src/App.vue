@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import Sidebar from './components/Sidebar.vue';
 import ChatBox from './components/ChatBox.vue';
 import ChatInput from './components/ChatInput.vue';
@@ -20,6 +20,69 @@ const currentSessionId = ref(null);
 const messages = ref([]);
 const sessions = ref([]);
 const providers = ref([]);
+const workspaces = ref([]);
+const currentWorkspacePath = ref(localStorage.getItem('currentWorkspacePath') || '');
+
+const allWorkspaces = computed(() => {
+    const list = [...workspaces.value];
+    const defaultPath = appConfig.app.default_directory;
+    if (defaultPath && !list.find(ws => ws.path === defaultPath)) {
+        list.unshift({ path: defaultPath, name: '默认工作区' });
+    }
+    return list;
+});
+
+const effectiveWorkspacePath = computed(() => currentWorkspacePath.value || appConfig.app.default_directory);
+
+const loadWorkspaces = async () => {
+    if (!currentUser.value) return;
+    try {
+        const response = await fetch(`/api/auth/workspaces?username=${encodeURIComponent(currentUser.value.username)}`);
+        const data = await response.json();
+        workspaces.value = Array.isArray(data) ? data : [];
+        
+        // If current workspace is not in the list anymore, clear it
+        if (currentWorkspacePath.value && !workspaces.value.find(ws => ws.path === currentWorkspacePath.value)) {
+            currentWorkspacePath.value = '';
+            localStorage.removeItem('currentWorkspacePath');
+        }
+    } catch (error) {
+        console.error('Error loading workspaces:', error);
+    }
+};
+
+const handleSelectWorkspace = (path) => {
+    currentWorkspacePath.value = path;
+    localStorage.setItem('currentWorkspacePath', path);
+    handleNewChat();
+    loadHistory();
+};
+
+const handleCreateWorkspace = async (path) => {
+    if (!currentUser.value) return;
+    
+    try {
+        const response = await fetch('/api/auth/workspaces', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: currentUser.value.username,
+                path: path
+            })
+        });
+        const data = await response.json();
+        if (data.success) {
+            workspaces.value = data.workspaces;
+            handleSelectWorkspace(path);
+        } else {
+            alert('创建工作区失败: ' + (data.error || '未知错误'));
+        }
+    } catch (error) {
+        console.error('Error creating workspace:', error);
+        alert('系统错误: 无法保存工作区');
+    }
+};
+
 const modelConfig = ref({
     providerID: '',
     modelID: '',
@@ -31,6 +94,7 @@ const isTyping = ref(false);
 const handleLoginSuccess = (user) => {
     currentUser.value = user;
     loadHistory();
+    loadWorkspaces();
     loadConfig();
 };
 
@@ -79,7 +143,14 @@ const loadHistory = async () => {
     if (!currentUser.value) return;
     
     try {
-        const response = await fetch(`/api/sessions?username=${encodeURIComponent(currentUser.value.username)}`);
+        const headers = {};
+        if (currentWorkspacePath.value) {
+            headers['x-workspace-path'] = currentWorkspacePath.value;
+        }
+        
+        const response = await fetch(`/api/sessions?username=${encodeURIComponent(currentUser.value.username)}`, {
+            headers
+        });
         const data = await response.json();
         sessions.value = data;
     } catch (error) {
@@ -105,7 +176,14 @@ const handleSelectSession = async (sessionId) => {
     messages.value = [];
     
     try {
-        const response = await fetch(`/api/sessions/${sessionId}/messages`);
+        const headers = {};
+        if (currentWorkspacePath.value) {
+            headers['x-workspace-path'] = currentWorkspacePath.value;
+        }
+        
+        const response = await fetch(`/api/sessions/${sessionId}/messages`, {
+            headers
+        });
         const data = await response.json();
         
         if (Array.isArray(data)) {
@@ -129,11 +207,16 @@ const handleSendMessage = async (message) => {
         const currentModelID = modelConfig.value.modelID;
         const currentMode = modelConfig.value.mode;
 
+        const commonHeaders = { 'Content-Type': 'application/json' };
+        if (currentWorkspacePath.value) {
+            commonHeaders['x-workspace-path'] = currentWorkspacePath.value;
+        }
+
         // Lazy session initialization
         if (!currentSessionId.value) {
             const sessionResp = await fetch('/api/sessions', { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: commonHeaders,
                 body: JSON.stringify({ 
                     username: currentUser.value.username,
                     title: appConfig.assistant.defaultSessionTitle 
@@ -150,7 +233,7 @@ const handleSendMessage = async (message) => {
 
         const response = await fetch(`/api/sessions/${currentSessionId.value}/messages`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: commonHeaders,
             body: JSON.stringify({
                 providerID: currentProviderID,
                 modelID: currentModelID,
@@ -183,9 +266,14 @@ const handleRenameSession = async (session) => {
     if (newTitle === null || newTitle.trim() === '' || newTitle === session.title) return;
 
     try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (currentWorkspacePath.value) {
+            headers['x-workspace-path'] = currentWorkspacePath.value;
+        }
+        
         const response = await fetch(`/api/sessions/${session.id}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify({ title: newTitle.trim() })
         });
         
@@ -204,8 +292,14 @@ const handleDeleteSession = async (session) => {
     if (!confirm('确定要删除这个会话吗？此操作不可撤销。')) return;
 
     try {
+        const headers = {};
+        if (currentWorkspacePath.value) {
+            headers['x-workspace-path'] = currentWorkspacePath.value;
+        }
+        
         const response = await fetch(`/api/sessions/${session.id}?username=${encodeURIComponent(currentUser.value.username)}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: headers
         });
         
         if (response.ok) {
@@ -391,6 +485,7 @@ onMounted(() => {
     handleNewChat();
     if (currentUser.value) {
         loadHistory();
+        loadWorkspaces();
         loadConfig();
     }
 });
@@ -414,11 +509,15 @@ onMounted(() => {
       :sessions="sessions" 
       :currentSessionId="currentSessionId"
       :isCollapsed="isHistoryCollapsed"
+      :workspaces="allWorkspaces"
+      :currentWorkspacePath="effectiveWorkspacePath"
       @new-chat="handleNewChat"
       @select-session="handleSelectSession"
       @toggle-history="isHistoryCollapsed = !isHistoryCollapsed"
       @rename-session="handleRenameSession"
       @delete-session="handleDeleteSession"
+      @select-workspace="handleSelectWorkspace"
+      @create-workspace="handleCreateWorkspace"
     />
     
     <main class="main-container">
