@@ -362,6 +362,7 @@ def send_session_message(session_id):
                 "providerID": info.get("providerID") or provider_id,
                 "modelID": info.get("modelID") or model_id,
                 "isError": is_error,
+                "parentID": info.get("parentID"),
             }
         )
     except Exception as e:

@@ -350,27 +350,23 @@ const handleSendMessage = async (message) => {
 
         const data = await response.json();
         if (data.text || data.parts) {
-            // Update the placeholder message metadata
-            const msg = messages.value[assistantMsgIndex];
-            if (msg) {
-                msg.timestamp = data.timestamp || new Date().toISOString();
-                msg.providerID = data.providerID || currentProviderID;
-                msg.modelID = data.modelID || currentModelID;
-                msg.isError = data.isError;
-                
-                // Update parts if returned
-                if (data.parts && data.parts.length > 0) {
-                    msg.parts = data.parts;
-                }
-                
-                // Only update text if it's currently empty or significantly different 
-                // This prevents the "jump" after stream completion
-                const currentLen = msg.text.length;
-                const finalLen = data.text?.length || 0;
-                
-                if (currentLen === 0 || Math.abs(currentLen - finalLen) > 10) {
-                    // console.log('[Chat] Updating text from POST response');
-                    msg.text = data.text || '';
+            // 因为只会返回最后一个 msg 的 parts，可能会缺少前面的内容，所以不用替换
+            // 直接使用流式输出的结果就足够了，但需要整理一下当前 message 中的 parts，将 reasoning 的部分合并
+            const currentMsg = messages.value[assistantMsgIndex];
+            if (currentMsg) {
+                if (data.parentID) currentMsg.parentID = data.parentID;
+                if (currentMsg.parts && currentMsg.parts.length > 0) {
+                    const reasoningParts = currentMsg.parts.filter(p => p.type === 'reasoning');
+                    const otherParts = currentMsg.parts.filter(p => p.type !== 'reasoning');
+                    
+                    if (reasoningParts.length > 0) {
+                        const mergedReasoning = {
+                            id: 'merged-reasoning-' + Date.now(),
+                            type: 'reasoning',
+                            content: reasoningParts.map(p => p.content).filter(c => c !== undefined && c !== null).join('\n\n')
+                        };
+                        currentMsg.parts = [mergedReasoning, ...otherParts];
+                    }
                 }
             }
         } else if (data.error) {
