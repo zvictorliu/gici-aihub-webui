@@ -79,6 +79,7 @@ const handleSelectWorkspace = async (path) => {
     
     handleNewChat();
     loadHistory();
+    setupEventSource();
 };
 
 const handleCreateWorkspace = async (payload) => {
@@ -115,6 +116,65 @@ const modelConfig = ref({
 });
 const isHistoryCollapsed = ref(false);
 const isTyping = ref(false);
+const eventSource = ref(null);
+
+const setupEventSource = () => {
+    if (eventSource.value) {
+        console.log('[SSE] Closing existing EventSource connection...');
+        eventSource.value.close();
+    }
+
+    const url = new URL('/api/events', window.location.origin);
+    if (effectiveWorkspacePath.value) {
+        url.searchParams.append('workspace_path', effectiveWorkspacePath.value);
+    }
+
+    console.log('[SSE] Connecting to:', url.toString());
+    const es = new EventSource(url.toString());
+
+    es.onopen = () => {
+        console.log('[SSE] Connection opened successfully.');
+    };
+
+    es.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            
+            // Log non-chunk updates for debugging
+            if (data.type !== 'message.part.updated') {
+                console.log('[SSE] Received event:', data.type, data);
+            }
+
+            if (data.type === 'message.part.updated') {
+                const delta = data.properties?.delta;
+                if (delta) {
+                    // Update the last assistant message
+                    const assistantMessages = messages.value.filter(m => m.sender === 'assistant');
+                    if (assistantMessages.length > 0) {
+                        const lastMsg = assistantMessages[assistantMessages.length - 1];
+                        // Don't update the welcome message
+                        if (lastMsg.modelID !== 'System') {
+                            lastMsg.text += delta;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[SSE] Failed to parse message data:', event.data);
+        }
+    };
+
+    es.onerror = (e) => {
+        console.error('[SSE] Connection error:', e);
+        if (es.readyState === EventSource.CLOSED) {
+            console.log('[SSE] Connection closed.');
+        }
+        // Retry after 5 seconds
+        setTimeout(setupEventSource, 5000);
+    };
+
+    eventSource.value = es;
+};
 
 const handleLoginSuccess = (user) => {
     currentUser.value = user;
@@ -228,6 +288,10 @@ const handleSendMessage = async (message) => {
     appendMessage(message, 'user');
     isTyping.value = true;
 
+    // Create a placeholder for the assistant response
+    const assistantMsgIndex = messages.value.length;
+    appendMessage('', 'assistant', null, modelConfig.value.providerID, modelConfig.value.modelID);
+
     try {
         // Store the config used for this message
         const currentProviderID = modelConfig.value.providerID;
@@ -272,7 +336,15 @@ const handleSendMessage = async (message) => {
 
         const data = await response.json();
         if (data.text) {
-            appendMessage(data.text, 'assistant', data.timestamp, data.providerID, data.modelID, data.isError);
+            // Update the placeholder message with final data
+            messages.value[assistantMsgIndex] = {
+                text: data.text,
+                sender: 'assistant',
+                timestamp: data.timestamp || new Date().toISOString(),
+                providerID: data.providerID || currentProviderID,
+                modelID: data.modelID || currentModelID,
+                isError: data.isError
+            };
         } else if (data.error) {
             const errorMsg = typeof data.error === 'object' 
                 ? (data.error.message || JSON.stringify(data.error)) 
@@ -283,7 +355,9 @@ const handleSendMessage = async (message) => {
         }
     } catch (error) {
         console.error('Error sending message:', error);
-        appendMessage('**系统错误：** ' + (error.message || '无法连接到后端服务器'), 'assistant');
+        // Update the placeholder with error info
+        messages.value[assistantMsgIndex].text = '**系统错误：** ' + (error.message || '无法连接到后端服务器');
+        messages.value[assistantMsgIndex].isError = true;
     } finally {
         isTyping.value = false;
     }
@@ -521,6 +595,7 @@ onMounted(async () => {
         handleNewChat();
         loadHistory();
         loadConfig();
+        setupEventSource();
     } else {
         handleNewChat();
     }

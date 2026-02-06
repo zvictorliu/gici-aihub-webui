@@ -67,7 +67,11 @@ def get_merged_config(workspace_id=None):
 
 def get_forward_headers():
     headers = {}
-    workspace_path = request.headers.get("x-workspace-path") or DEFAULT_DIRECTORY
+    workspace_path = (
+        request.headers.get("x-workspace-path")
+        or request.args.get("workspace_path")
+        or DEFAULT_DIRECTORY
+    )
     if workspace_path:
         headers["x-opencode-directory"] = workspace_path
     return headers
@@ -408,6 +412,29 @@ def remove_user_workspace():
 def get_active_config():
     workspace_id = request.args.get("workspace_id")
     return jsonify(get_merged_config(workspace_id))
+
+
+@app.route("/api/events")
+def stream_events():
+    """Proxy SSE events from opencode to the frontend."""
+    headers = get_forward_headers()
+
+    def generate():
+        try:
+            # Connect to opencode's global event stream
+            # Using stream=True to read chunks
+            resp = requests.get(
+                f"{OPENCODE_URL}/event", headers=headers, stream=True, timeout=None
+            )
+            for line in resp.iter_lines():
+                if line:
+                    # Relaying the SSE line
+                    yield line.decode("utf-8") + "\n\n"
+        except Exception as e:
+            error_data = json.dumps({"type": "error", "message": str(e)})
+            yield f"data: {error_data}\n\n"
+
+    return Response(generate(), mimetype="text/event-stream")
 
 
 @app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
