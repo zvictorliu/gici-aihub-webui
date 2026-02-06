@@ -204,15 +204,29 @@ def get_session_messages(session_id):
                 )
 
                 parts = []
+                reasoning_content = []
                 for p in msg.get("parts", []):
-                    if p.get("type") in ["text", "reasoning"]:
+                    p_type = p.get("type")
+                    if p_type == "reasoning":
+                        reasoning_content.append(p.get("text", ""))
+                    elif p_type == "text":
                         parts.append(
                             {
                                 "id": p.get("id"),
-                                "type": p.get("type"),
+                                "type": "text",
                                 "content": p.get("text", ""),
                             }
                         )
+
+                if reasoning_content:
+                    parts.insert(
+                        0,
+                        {
+                            "id": "merged-reasoning",
+                            "type": "reasoning",
+                            "content": "\n\n".join(filter(None, reasoning_content)),
+                        },
+                    )
 
                 # Handle messages with errors in history
                 is_error = False
@@ -227,17 +241,57 @@ def get_session_messages(session_id):
                     text = f"**错误：** {error_msg}"
 
                 if text or parts:
-                    simplified.append(
-                        {
-                            "text": text,
-                            "parts": parts,
-                            "sender": "user" if role == "user" else "assistant",
-                            "timestamp": timestamp,
-                            "providerID": provider_id,
-                            "modelID": model_id,
-                            "isError": is_error,
-                        }
-                    )
+                    # Check if we can merge with previous assistant message having the same parentID
+                    parent_id = info.get("parentID")
+                    if (
+                        role == "assistant"
+                        and parent_id
+                        and simplified
+                        and simplified[-1]["sender"] == "assistant"
+                        and simplified[-1].get("parentID") == parent_id
+                    ):
+                        # Append text if it exists
+                        if text:
+                            if simplified[-1]["text"]:
+                                simplified[-1]["text"] += "\n" + text
+                            else:
+                                simplified[-1]["text"] = text
+
+                        # Merge parts: specifically handle reasoning
+                        for p in parts:
+                            if p["type"] == "reasoning":
+                                existing_reasoning = next(
+                                    (
+                                        item
+                                        for item in simplified[-1]["parts"]
+                                        if item["type"] == "reasoning"
+                                    ),
+                                    None,
+                                )
+                                if existing_reasoning:
+                                    if existing_reasoning["content"] and p["content"]:
+                                        existing_reasoning["content"] += (
+                                            "\n" + p["content"]
+                                        )
+                                    elif p["content"]:
+                                        existing_reasoning["content"] = p["content"]
+                                else:
+                                    simplified[-1]["parts"].insert(0, p)
+                            else:
+                                simplified[-1]["parts"].append(p)
+                    else:
+                        simplified.append(
+                            {
+                                "text": text,
+                                "parts": parts,
+                                "sender": "user" if role == "user" else "assistant",
+                                "timestamp": timestamp,
+                                "providerID": provider_id,
+                                "modelID": model_id,
+                                "isError": is_error,
+                                "parentID": parent_id,
+                            }
+                        )
 
         return jsonify(simplified)
     except Exception as e:

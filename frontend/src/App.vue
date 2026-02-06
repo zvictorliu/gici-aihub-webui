@@ -369,7 +369,7 @@ const handleSendMessage = async (message) => {
                 const finalLen = data.text?.length || 0;
                 
                 if (currentLen === 0 || Math.abs(currentLen - finalLen) > 10) {
-                    console.log('[Chat] Updating text from POST response');
+                    // console.log('[Chat] Updating text from POST response');
                     msg.text = data.text || '';
                 }
             }
