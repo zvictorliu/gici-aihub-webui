@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Marked } from 'marked';
 import { markedHighlight } from "marked-highlight";
 import hljs from 'highlight.js';
@@ -8,6 +8,18 @@ import 'highlight.js/styles/github-dark.css';
 const props = defineProps({
   message: Object
 });
+
+// Track collapsed state of reasoning parts
+const expandedParts = ref({});
+
+const toggleReasoning = (partId) => {
+  expandedParts.value[partId] = !expandedParts.value[partId];
+};
+
+const isExpanded = (partId) => {
+  // Default to expanded for new parts to show streaming
+  return expandedParts.value[partId] !== false;
+};
 
 const marked = new Marked(
   markedHighlight({
@@ -19,8 +31,18 @@ const marked = new Marked(
   })
 );
 
+const renderedParts = computed(() => {
+  if (props.message.sender === 'assistant' && props.message.parts && props.message.parts.length > 0) {
+    return props.message.parts.map(p => ({
+      ...p,
+      html: p.type === 'text' ? marked.parse(p.content) : p.content
+    }));
+  }
+  return null;
+});
+
 const renderedContent = computed(() => {
-  if (props.message.sender === 'assistant') {
+  if (props.message.sender === 'assistant' && !renderedParts.value) {
     return marked.parse(props.message.text);
   }
   return props.message.text;
@@ -36,9 +58,25 @@ const formattedTime = computed(() => {
   <div class="message animate-fade-in" :class="[message.sender, { 'error-msg': message.isError }]">
     <div 
       class="message-content" 
-      v-if="message.sender === 'assistant'" 
-      v-html="renderedContent"
-    ></div>
+      v-if="message.sender === 'assistant'"
+    >
+      <template v-if="renderedParts">
+        <div v-for="part in renderedParts" :key="part.id" :class="['message-part', part.type]">
+          <div v-if="part.type === 'reasoning'" class="reasoning-container" :class="{ collapsed: !isExpanded(part.id) }">
+            <div class="reasoning-header" @click="toggleReasoning(part.id)" title="点击展开/折叠思考过程">
+              <span class="header-left">
+                <i class="fa-solid fa-brain"></i> 思考过程
+              </span>
+              <i class="fa-solid" :class="isExpanded(part.id) ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+            </div>
+            <div v-show="isExpanded(part.id)" class="reasoning-content">{{ part.content }}</div>
+          </div>
+          <div v-else-if="part.type === 'text'" v-html="part.html"></div>
+          <div v-else class="part-content">{{ part.content }}</div>
+        </div>
+      </template>
+      <div v-else v-html="renderedContent"></div>
+    </div>
     <div 
       class="message-content" 
       v-else
@@ -73,6 +111,60 @@ const formattedTime = computed(() => {
 
 .message.assistant {
   align-self: flex-start;
+}
+
+.message-part {
+  margin-bottom: 8px;
+}
+
+.message-part:last-child {
+  margin-bottom: 0;
+}
+
+.reasoning-container {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  border-left: 3px solid var(--text-secondary);
+}
+
+.reasoning-header {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+
+.reasoning-header:hover {
+  opacity: 0.8;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reasoning-container.collapsed {
+  padding-bottom: 8px;
+}
+
+.reasoning-container.collapsed .reasoning-header {
+  margin-bottom: 0;
+}
+
+.reasoning-content {
+  font-size: 0.9rem;
+  color: #64748b; /* Gray font for reasoning */
+  white-space: pre-wrap;
+  font-style: italic;
 }
 
 .message.assistant .message-content {

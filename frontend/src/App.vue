@@ -147,14 +147,27 @@ const setupEventSource = () => {
 
             if (data.type === 'message.part.updated') {
                 const delta = data.properties?.delta;
-                if (delta) {
+                const part = data.properties?.part;
+                if (delta && part) {
                     // Update the last assistant message
                     const assistantMessages = messages.value.filter(m => m.sender === 'assistant');
                     if (assistantMessages.length > 0) {
                         const lastMsg = assistantMessages[assistantMessages.length - 1];
                         // Don't update the welcome message
                         if (lastMsg.modelID !== 'System') {
-                            lastMsg.text += delta;
+                            if (!lastMsg.parts) lastMsg.parts = [];
+                            
+                            let targetPart = lastMsg.parts.find(p => p.id === part.id);
+                            if (!targetPart) {
+                                targetPart = { id: part.id, type: part.type, content: '' };
+                                lastMsg.parts.push(targetPart);
+                            }
+                            targetPart.content += delta;
+                            
+                            // Keep text in sync for compatibility
+                            if (part.type === 'text') {
+                                lastMsg.text += delta;
+                            }
                         }
                     }
                 }
@@ -198,7 +211,8 @@ const appendMessage = (text, sender, timestamp, providerID, modelID, isError = f
         timestamp: timestamp || new Date().toISOString(),
         providerID,
         modelID,
-        isError
+        isError,
+        parts: sender === 'assistant' ? [] : undefined
     });
 };
 
@@ -335,16 +349,30 @@ const handleSendMessage = async (message) => {
         });
 
         const data = await response.json();
-        if (data.text) {
-            // Update the placeholder message with final data
-            messages.value[assistantMsgIndex] = {
-                text: data.text,
-                sender: 'assistant',
-                timestamp: data.timestamp || new Date().toISOString(),
-                providerID: data.providerID || currentProviderID,
-                modelID: data.modelID || currentModelID,
-                isError: data.isError
-            };
+        if (data.text || data.parts) {
+            // Update the placeholder message metadata
+            const msg = messages.value[assistantMsgIndex];
+            if (msg) {
+                msg.timestamp = data.timestamp || new Date().toISOString();
+                msg.providerID = data.providerID || currentProviderID;
+                msg.modelID = data.modelID || currentModelID;
+                msg.isError = data.isError;
+                
+                // Update parts if returned
+                if (data.parts && data.parts.length > 0) {
+                    msg.parts = data.parts;
+                }
+                
+                // Only update text if it's currently empty or significantly different 
+                // This prevents the "jump" after stream completion
+                const currentLen = msg.text.length;
+                const finalLen = data.text?.length || 0;
+                
+                if (currentLen === 0 || Math.abs(currentLen - finalLen) > 10) {
+                    console.log('[Chat] Updating text from POST response');
+                    msg.text = data.text || '';
+                }
+            }
         } else if (data.error) {
             const errorMsg = typeof data.error === 'object' 
                 ? (data.error.message || JSON.stringify(data.error)) 

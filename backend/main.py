@@ -203,9 +203,20 @@ def get_session_messages(session_id):
                     ]
                 )
 
+                parts = []
+                for p in msg.get("parts", []):
+                    if p.get("type") in ["text", "reasoning"]:
+                        parts.append(
+                            {
+                                "id": p.get("id"),
+                                "type": p.get("type"),
+                                "content": p.get("text", ""),
+                            }
+                        )
+
                 # Handle messages with errors in history
                 is_error = False
-                if not text and info.get("error"):
+                if not text and not parts and info.get("error"):
                     is_error = True
                     error_info = info.get("error", {})
                     error_msg = (
@@ -215,10 +226,11 @@ def get_session_messages(session_id):
                     )
                     text = f"**错误：** {error_msg}"
 
-                if text:
+                if text or parts:
                     simplified.append(
                         {
                             "text": text,
+                            "parts": parts,
                             "sender": "user" if role == "user" else "assistant",
                             "timestamp": timestamp,
                             "providerID": provider_id,
@@ -283,6 +295,15 @@ def send_session_message(session_id):
         return jsonify(
             {
                 "text": text,
+                "parts": [
+                    {
+                        "id": p.get("id"),
+                        "type": p.get("type"),
+                        "content": p.get("text", ""),
+                    }
+                    for p in parts
+                    if p.get("type") in ["text", "reasoning"]
+                ],
                 "timestamp": timestamp,
                 "providerID": info.get("providerID") or provider_id,
                 "modelID": info.get("modelID") or model_id,
