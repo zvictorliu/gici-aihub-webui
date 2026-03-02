@@ -52,6 +52,29 @@ const formattedTime = computed(() => {
   const date = new Date(props.message.timestamp);
   return date.getHours() + ':' + date.getMinutes().toString().padStart(2, '0');
 });
+
+const copyContent = computed(() => {
+  if (props.message.parts && props.message.parts.length > 0) {
+    return props.message.parts
+      .filter(p => p.type === 'text')
+      .map(p => p.content)
+      .join('');
+  }
+  return props.message.text;
+});
+
+const isCopied = ref(false);
+const copyToClipboard = async () => {
+  try {
+    await navigator.clipboard.writeText(copyContent.value);
+    isCopied.value = true;
+    setTimeout(() => {
+      isCopied.value = false;
+    }, 2000);
+  } catch (err) {
+    console.error('Failed to copy: ', err);
+  }
+};
 </script>
 
 <template>
@@ -88,6 +111,15 @@ const formattedTime = computed(() => {
       <span v-if="message.sender === 'assistant' && message.modelID" class="model-info">
         <i class="fa-solid fa-robot"></i> {{ message.providerID ? message.providerID + ' / ' : '' }}{{ message.modelID }}
       </span>
+      <button 
+        v-if="message.sender === 'assistant' && !message.isError && copyContent" 
+        class="copy-btn" 
+        @click="copyToClipboard" 
+        :title="isCopied ? '已复制' : '复制回答内容'"
+      >
+        <i class="fa-solid" :class="isCopied ? 'fa-check' : 'fa-copy'"></i>
+        {{ isCopied ? '已复制' : '复制' }}
+      </button>
       <span class="time">{{ formattedTime }}</span>
     </div>
   </div>
@@ -218,6 +250,31 @@ const formattedTime = computed(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.copy-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  opacity: 0.8;
+  min-width: 50px;
+}
+
+.copy-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  opacity: 1;
+}
+
+.copy-btn i {
+  font-size: 0.7rem;
 }
 
 :deep(pre) {
