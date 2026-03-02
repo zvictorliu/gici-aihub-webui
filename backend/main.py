@@ -134,7 +134,6 @@ def get_sessions():
 def create_session():
     data = request.json
     username = data.get("username")
-    title = data.get("title", "New Chat Session")
 
     if not username:
         return jsonify({"error": "Missing username"}), 400
@@ -143,7 +142,7 @@ def create_session():
         # 1. Create session in OpenCode
         resp = requests.post(
             f"{OPENCODE_URL}/session",
-            json={"title": title},
+            json={},
             headers=get_forward_headers(),
         )
         session_data = resp.json()
@@ -161,7 +160,7 @@ def create_session():
             if session_id not in user["sessions"]:
                 user["sessions"].append(session_id)
             save_users(users)
-            return jsonify({"id": session_id, "title": title})
+            return jsonify({"id": session_id, "title": "新会话"})
 
         return jsonify({"error": "User not found"}), 404
     except Exception as e:

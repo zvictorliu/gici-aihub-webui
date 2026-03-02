@@ -145,6 +145,23 @@ const setupEventSource = () => {
                 console.log('[SSE] Received event:', data.type, data);
             }
 
+            if (data.type === 'session.updated') {
+                const properties = data.properties || {};
+                const info = properties.info || {};
+                const title = info.title;
+                const targetId = data.id || info.id;
+                
+                if (title && targetId) {
+                    const session = sessions.value.find(s => s.id === targetId);
+                    if (session) {
+                        session.title = title;
+                    } else if (targetId === currentSessionId.value) {
+                        // 如果是当前会话但在列表中找不到，刷新列表
+                        loadHistory();
+                    }
+                }
+            }
+
             if (data.type === 'message.part.updated') {
                 const delta = data.properties?.delta;
                 const part = data.properties?.part;
@@ -324,14 +341,13 @@ const handleSendMessage = async (message) => {
                 method: 'POST',
                 headers: commonHeaders,
                 body: JSON.stringify({ 
-                    username: currentUser.value.username,
-                    title: appConfig.assistant.defaultSessionTitle 
+                    username: currentUser.value.username
                 })
             });
             const sessionData = await sessionResp.json();
             if (sessionData.id) {
                 currentSessionId.value = sessionData.id;
-                loadHistory();
+                await loadHistory();
             } else {
                 throw new Error(sessionData.error || 'Failed to create session');
             }
