@@ -16,6 +16,7 @@ app = Flask(__name__)
 BACKEND_DIR = Path(__file__).parent
 ROOT_DIR = BACKEND_DIR.parent
 USERS_FILE = BACKEND_DIR / "users.json"
+SYSTEM_WS_FILE = BACKEND_DIR / "system-workspaces.json"
 CONFIG_DIR = ROOT_DIR / "config"
 CONFIG_FILE = CONFIG_DIR / "appConfig.toml"
 WS_CONFIG_DIR = CONFIG_DIR / "workspaces"
@@ -44,6 +45,16 @@ def load_users():
 def save_users(users):
     with open(USERS_FILE, "w", encoding="utf-8") as f:
         json.dump(users, f, indent=2, ensure_ascii=False)
+
+
+def load_system_workspaces():
+    if not SYSTEM_WS_FILE.exists():
+        return []
+    with open(SYSTEM_WS_FILE, "r", encoding="utf-8") as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []
 
 
 def get_merged_config(workspace_id=None):
@@ -428,13 +439,15 @@ def handle_session(session_id):
 def get_user_workspaces():
     username = request.args.get("username")
     if not username:
-        return jsonify([]), 400
+        return jsonify({"system": [], "user": []}), 400
+
+    system_workspaces = load_system_workspaces()
 
     users = load_users()
     user = next((u for u in users if u["username"] == username), None)
-    if user:
-        return jsonify(user.get("workspaces", []))
-    return jsonify([])
+    user_workspaces = user.get("workspaces", []) if user else []
+
+    return jsonify({"system": system_workspaces, "user": user_workspaces})
 
 
 @app.route("/api/auth/workspaces", methods=["POST"])
@@ -450,7 +463,7 @@ def add_user_workspace():
 
     if not re.match(r"^[a-zA-Z0-9_-]+$", ws_id):
         return jsonify(
-            {"error": "ID 包含非法字符 (仅允许字母、数字、下划线和连字符)"}
+            {"error": "ID 包含非法字符 (仅允许字母、数字、下划线 and 连字符)"}
         ), 400
 
     users = load_users()
@@ -458,11 +471,15 @@ def add_user_workspace():
     if user:
         if "workspaces" not in user:
             user["workspaces"] = []
-        # Check if already exists
+        # Check if already exists in user workspaces
         if not any(ws["id"] == ws_id for ws in user["workspaces"]):
             user["workspaces"].append({"id": ws_id, "path": path, "name": name})
             save_users(users)
-        return jsonify({"success": True, "workspaces": user["workspaces"]})
+
+        system_workspaces = load_system_workspaces()
+        return jsonify(
+            {"success": True, "system": system_workspaces, "user": user["workspaces"]}
+        )
     return jsonify({"error": "用户不存在"}), 404
 
 

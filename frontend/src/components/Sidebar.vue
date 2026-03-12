@@ -6,7 +6,8 @@ const props = defineProps({
   sessions: Array,
   currentSessionId: String,
   isCollapsed: Boolean,
-  workspaces: Array,
+  systemWorkspaces: Array,
+  userWorkspaces: Array,
   currentWorkspacePath: String
 });
 
@@ -90,21 +91,37 @@ const submitCreateWorkspace = () => {
           </button>
         </div>
         <div class="workspace-list">
+          <!-- System Workspaces -->
           <button 
-            v-for="ws in workspaces" 
+            v-for="ws in systemWorkspaces" 
             :key="ws.path"
-            class="nav-item workspace-item" 
+            class="nav-item workspace-item system-ws" 
+            :class="{ active: ws.path === currentWorkspacePath }"
+            @click="emit('select-workspace', ws.path)"
+          >
+            <i class="fa-solid fa-server"></i>
+            <span class="workspace-name" :title="ws.path">
+              {{ ws.name }}
+              <span v-if="ws.id && ws.id !== 'default'" class="id-tag">#{{ ws.id }}</span>
+            </span>
+          </button>
+
+          <!-- User Workspaces -->
+          <button 
+            v-for="ws in userWorkspaces" 
+            :key="ws.path"
+            class="nav-item workspace-item user-ws" 
             :class="{ active: ws.path === currentWorkspacePath }"
             @click="emit('select-workspace', ws.path)"
           >
             <i class="fa-solid fa-folder-open"></i>
             <span class="workspace-name" :title="ws.path">
               {{ ws.name || ws.path.split('/').pop() || ws.path }}
-              <span v-if="ws.id && ws.id !== 'default'" class="id-tag">#{{ ws.id }}</span>
-              <span v-if="ws.path === appConfig.app.default_directory" class="default-tag">(默认)</span>
+              <span v-if="ws.id" class="id-tag">#{{ ws.id }}</span>
             </span>
           </button>
-          <div v-if="workspaces.length === 0" class="empty-hint">
+          
+          <div v-if="systemWorkspaces.length === 0 && userWorkspaces.length === 0" class="empty-hint">
             点击 + 开设新工作区
           </div>
         </div>
@@ -249,6 +266,39 @@ const submitCreateWorkspace = () => {
 
 .workspace-item {
   padding: 8px 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.workspace-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  opacity: 0.6;
+}
+
+.system-ws i {
+  color: #38bdf8; /* Sky blue for system */
+}
+
+.system-ws::before {
+  background-color: #38bdf8;
+}
+
+.user-ws i {
+  color: #fbbf24; /* Amber for user */
+}
+
+.user-ws::before {
+  background-color: #fbbf24;
+}
+
+.workspace-item.active::before {
+  opacity: 1;
+  width: 4px;
 }
 
 .workspace-name {

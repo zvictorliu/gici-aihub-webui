@@ -9,3 +9,6 @@ temp/
 
 # user data
 users*.json
+
+system*.json
+config/workspaces

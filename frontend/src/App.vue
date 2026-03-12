@@ -20,17 +20,13 @@ const currentSessionId = ref(null);
 const messages = ref([]);
 const sessions = ref([]);
 const providers = ref([]);
-const workspaces = ref([]);
+const systemWorkspaces = ref([]);
+const userWorkspaces = ref([]);
 const currentWorkspacePath = ref(localStorage.getItem('currentWorkspacePath') || '');
 const currentWorkspaceId = ref(localStorage.getItem('currentWorkspaceId') || '');
 
 const allWorkspaces = computed(() => {
-    const list = [...workspaces.value];
-    const defaultPath = appConfig.app.default_directory;
-    if (defaultPath && !list.find(ws => ws.path === defaultPath)) {
-        list.unshift({ path: defaultPath, id: 'default', name: '默认工作区' });
-    }
-    return list;
+    return [...systemWorkspaces.value, ...userWorkspaces.value];
 });
 
 const effectiveWorkspacePath = computed(() => currentWorkspacePath.value || appConfig.app.default_directory);
@@ -52,10 +48,11 @@ const loadWorkspaces = async () => {
     try {
         const response = await fetch(`/api/auth/workspaces?username=${encodeURIComponent(currentUser.value.username)}`);
         const data = await response.json();
-        workspaces.value = Array.isArray(data) ? data : [];
+        systemWorkspaces.value = data.system || [];
+        userWorkspaces.value = data.user || [];
         
         // If current workspace is not in the list anymore, clear it
-        if (currentWorkspacePath.value && !workspaces.value.find(ws => ws.path === currentWorkspacePath.value)) {
+        if (currentWorkspacePath.value && !allWorkspaces.value.find(ws => ws.path === currentWorkspacePath.value)) {
             currentWorkspacePath.value = '';
             currentWorkspaceId.value = '';
             localStorage.removeItem('currentWorkspacePath');
@@ -97,7 +94,8 @@ const handleCreateWorkspace = async (payload) => {
         });
         const data = await response.json();
         if (data.success) {
-            workspaces.value = data.workspaces;
+            systemWorkspaces.value = data.system;
+            userWorkspaces.value = data.user;
             handleSelectWorkspace(payload.path);
         } else {
             alert('创建工作区失败: ' + (data.error || '未知错误'));
@@ -660,7 +658,8 @@ onMounted(async () => {
       :sessions="sessions" 
       :currentSessionId="currentSessionId"
       :isCollapsed="isHistoryCollapsed"
-      :workspaces="allWorkspaces"
+      :systemWorkspaces="systemWorkspaces"
+      :userWorkspaces="userWorkspaces"
       :currentWorkspacePath="effectiveWorkspacePath"
       @new-chat="handleNewChat"
       @select-session="handleSelectSession"

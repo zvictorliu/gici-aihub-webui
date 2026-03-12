@@ -1,7 +1,7 @@
 [app]
 title = "GICI AIHUB"
 headerTitle = "GICI 知识库智能助手"
-default_directory = "/home/aihub/aihub_root"
+default_directory = "/home/aihub/aihub_root/gici_aihub"
 copyright = "© 2026 GICI-aihub All Rights Reserved"
 shortCopyright = "© 2026 GICI-aihub"
 
