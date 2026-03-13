@@ -435,6 +435,49 @@ def handle_session(session_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/auth/register", methods=["POST"])
+def register():
+    data = request.json
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        return jsonify({"error": "缺少用户名或密码"}), 400
+
+    users = load_users()
+
+    if any(u["username"] == username for u in users):
+        return jsonify({"error": "用户名已存在"}), 400
+
+    users.append({
+        "username": username,
+        "password": password,
+        "sessions": [],
+        "workspaces": []
+    })
+    save_users(users)
+
+    return jsonify({"username": username, "message": "注册成功"})
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def login():
+    data = request.json
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        return jsonify({"error": "缺少用户名或密码"}), 400
+
+    users = load_users()
+    user = next((u for u in users if u["username"] == username and u["password"] == password), None)
+
+    if not user:
+        return jsonify({"error": "用户名或密码错误"}), 401
+
+    return jsonify({"username": username})
+
+
 @app.route("/api/auth/workspaces", methods=["GET"])
 def get_user_workspaces():
     username = request.args.get("username")
