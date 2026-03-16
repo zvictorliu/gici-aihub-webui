@@ -43,6 +43,10 @@ const submitCreateWorkspace = () => {
   });
   closeConfigModal();
 };
+
+defineExpose({
+  handleNewWorkspace
+});
 </script>
 
 <template>
@@ -127,7 +131,7 @@ const submitCreateWorkspace = () => {
           </button>
           
           <div v-if="systemWorkspaces.length === 0 && userWorkspaces.length === 0" class="empty-hint">
-            点击 + 开设新工作区
+            尚未创建工作区，请点击 + 开设
           </div>
         </div>
       </div>

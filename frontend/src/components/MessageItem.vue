@@ -28,7 +28,10 @@ const marked = new Marked(
       const language = hljs.getLanguage(lang) ? lang : 'plaintext';
       return hljs.highlight(code, { language }).value;
     }
-  })
+  }),
+  {
+    breaks: true
+  }
 );
 
 const renderedParts = computed(() => {
@@ -145,12 +148,28 @@ const copyToClipboard = async () => {
   align-self: flex-start;
 }
 
-.message-part {
+.message.assistant .message-content {
+  background-color: var(--message-assistant);
+  color: var(--text-primary);
+  border-bottom-left-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.message.assistant .message-content :deep(p) {
   margin-bottom: 8px;
 }
 
-.message-part:last-child {
+.message.assistant .message-content :deep(p:last-child) {
   margin-bottom: 0;
+}
+
+.message.assistant .message-content :deep(ul),
+.message.assistant .message-content :deep(ol) {
+  margin-bottom: 8px;
+}
+
+.message-part {
+  margin-bottom: 8px;
 }
 
 .reasoning-container {
@@ -199,11 +218,8 @@ const copyToClipboard = async () => {
   font-style: italic;
 }
 
-.message.assistant .message-content {
-  background-color: var(--message-assistant);
-  color: var(--text-primary);
-  border-bottom-left-radius: 4px;
-  border: 1px solid var(--border);
+.part-content {
+  white-space: pre-wrap;
 }
 
 .message.error-msg .message-content {
@@ -228,6 +244,7 @@ const copyToClipboard = async () => {
   background-color: var(--message-user);
   color: white;
   border-bottom-right-radius: 4px;
+  white-space: pre-wrap;
 }
 
 .message-meta {
@@ -301,10 +318,6 @@ const copyToClipboard = async () => {
 
 :deep(p) {
   margin-bottom: 8px;
-}
-
-:deep(p:first-child) {
-  margin-top: 0;
 }
 
 :deep(p:last-child) {

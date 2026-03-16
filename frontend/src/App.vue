@@ -29,8 +29,8 @@ const allWorkspaces = computed(() => {
     return [...systemWorkspaces.value, ...userWorkspaces.value];
 });
 
-const effectiveWorkspacePath = computed(() => currentWorkspacePath.value || appConfig.app.default_directory);
-const effectiveWorkspaceId = computed(() => currentWorkspaceId.value || 'default');
+const effectiveWorkspacePath = computed(() => currentWorkspacePath.value);
+const effectiveWorkspaceId = computed(() => currentWorkspaceId.value);
 
 const refreshConfig = async () => {
     try {
@@ -135,6 +135,13 @@ const modelConfig = ref({
 const isHistoryCollapsed = ref(false);
 const isTyping = ref(false);
 const eventSource = ref(null);
+const sidebarRef = ref(null);
+
+const handlePromptCreate = () => {
+    if (sidebarRef.value) {
+        sidebarRef.value.handleNewWorkspace();
+    }
+};
 
 const setupEventSource = () => {
     if (eventSource.value) {
@@ -495,7 +502,10 @@ const handleExportHTML = () => {
                 const language = hljs.getLanguage(lang) ? lang : 'plaintext';
                 return hljs.highlight(code, { language }).value;
             }
-        })
+        }),
+        {
+            breaks: true
+        }
     );
 
     let htmlContent = `
@@ -555,6 +565,13 @@ const handleExportHTML = () => {
             color: var(--text-primary);
             border-bottom-left-radius: 4px;
             border: 1px solid var(--border);
+            white-space: pre-wrap;
+        }
+        .assistant .message-content p {
+            margin-bottom: 8px;
+        }
+        .assistant .message-content p:last-child {
+            margin-bottom: 0;
         }
         .error .message-content {
             border-color: #f87171;
@@ -591,9 +608,6 @@ const handleExportHTML = () => {
             font-family: 'Fira Code', monospace;
             font-size: 0.9em;
         }
-        p { margin-bottom: 8px; }
-        p:first-child { margin-top: 0; }
-        p:last-child { margin-bottom: 0; }
     </style>
 </head>
 <body>
@@ -675,6 +689,7 @@ onMounted(async () => {
   
   <div v-else class="app-layout">
     <Sidebar 
+      ref="sidebarRef"
       :sessions="sessions" 
       :currentSessionId="currentSessionId"
       :isCollapsed="isHistoryCollapsed"
@@ -711,14 +726,31 @@ onMounted(async () => {
       </header>
 
       <ModelSelector 
-        v-if="providers.length"
+        v-if="effectiveWorkspacePath && providers.length"
         v-model="modelConfig"
         :providers="providers"
       />
       
-      <ChatBox :messages="messages" :isTyping="isTyping" />
-      
-      <ChatInput @send="handleSendMessage" />
+      <template v-if="effectiveWorkspacePath">
+        <ChatBox :messages="messages" :isTyping="isTyping" />
+        <ChatInput @send="handleSendMessage" />
+      </template>
+
+      <div v-else class="no-workspace-container">
+        <div class="no-workspace-card animate-fade-in">
+          <div class="no-workspace-icon">
+            <i class="fa-solid fa-folder-tree"></i>
+          </div>
+          <h2>尚未进入工作区</h2>
+          <p v-if="allWorkspaces.length === 0">您还没有定义任何工作区。请在左侧侧边栏点击 "+" 按钮开设新工作区。</p>
+          <p v-else>请从左侧列表中选择一个工作区以开始使用。</p>
+          <div v-if="allWorkspaces.length === 0" class="no-workspace-action">
+            <button class="primary-btn" @click="handlePromptCreate">
+              <i class="fa-solid fa-plus"></i> 开设第一个工作区
+            </button>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </template>
@@ -822,5 +854,76 @@ body {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.no-workspace-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background-image: radial-gradient(circle at 50% 50%, rgba(3, 105, 161, 0.05) 0%, transparent 70%);
+}
+
+.no-workspace-card {
+  max-width: 500px;
+  width: 100%;
+  padding: 48px;
+  background: var(--surface);
+  border-radius: 24px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.no-workspace-icon {
+  width: 80px;
+  height: 80px;
+  background: rgba(3, 105, 161, 0.1);
+  color: var(--accent);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin: 0 auto 24px;
+}
+
+.no-workspace-card h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+
+.no-workspace-card p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+.primary-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(3, 105, 161, 0.2);
+}
+
+.primary-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(3, 105, 161, 0.3);
+}
+
+.primary-btn:active {
+  transform: translateY(0);
 }
 </style>

@@ -29,8 +29,6 @@ WS_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 with open(CONFIG_FILE, "rb") as f:
     app_config = tomllib.load(f)
 
-DEFAULT_DIRECTORY = app_config.get("app", {}).get("default_directory", "")
-
 
 def load_users():
     if not USERS_FILE.exists():
@@ -78,10 +76,8 @@ def get_merged_config(workspace_id=None):
 
 def get_forward_headers():
     headers = {}
-    workspace_path = (
-        request.headers.get("x-workspace-path")
-        or request.args.get("workspace_path")
-        or DEFAULT_DIRECTORY
+    workspace_path = request.headers.get("x-workspace-path") or request.args.get(
+        "workspace_path"
     )
     if workspace_path:
         headers["x-opencode-directory"] = workspace_path
@@ -578,8 +574,8 @@ def proxy(path):
 
     # Forward the request to the opencode server
     headers = {key: value for (key, value) in request.headers if key != "Host"}
-    workspace_path = request.headers.get("x-workspace-path") or DEFAULT_DIRECTORY
-    workspace_id = request.headers.get("x-workspace-id") or "default"
+    workspace_path = request.headers.get("x-workspace-path")
+    workspace_id = request.headers.get("x-workspace-id")
 
     if workspace_path:
         headers["x-opencode-directory"] = workspace_path
