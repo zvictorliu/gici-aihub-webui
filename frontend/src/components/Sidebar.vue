@@ -11,7 +11,7 @@ const props = defineProps({
   currentWorkspacePath: String
 });
 
-const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'rename-session', 'delete-session', 'select-workspace', 'create-workspace']);
+const emit = defineEmits(['new-chat', 'select-session', 'toggle-history', 'rename-session', 'delete-session', 'select-workspace', 'create-workspace', 'delete-workspace']);
 
 const showCreateModal = ref(false);
 const newWs = ref({
@@ -119,6 +119,11 @@ const submitCreateWorkspace = () => {
               {{ ws.name || ws.path.split('/').pop() || ws.path }}
               <span v-if="ws.id" class="id-tag">#{{ ws.id }}</span>
             </span>
+            <div class="item-actions">
+              <button class="action-btn delete" title="移除工作区" @click.stop="emit('delete-workspace', ws)">
+                <i class="fa-solid fa-xmark" style="font-size: 14px;"></i>
+              </button>
+            </div>
           </button>
           
           <div v-if="systemWorkspaces.length === 0 && userWorkspaces.length === 0" class="empty-hint">
@@ -430,7 +435,8 @@ const submitCreateWorkspace = () => {
   gap: 4px;
 }
 
-.history-item:hover .item-actions {
+.history-item:hover .item-actions,
+.workspace-item:hover .item-actions {
   display: flex;
 }
 

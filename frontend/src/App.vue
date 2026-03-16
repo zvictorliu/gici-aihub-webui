@@ -106,6 +106,26 @@ const handleCreateWorkspace = async (payload) => {
     }
 };
 
+const handleDeleteWorkspace = async (ws) => {
+    if (!confirm(`确定要移除工作区 "${ws.name || ws.path}" 吗？\n注意：这仅是从列表中移除，不会删除物理文件夹。`)) return;
+
+    try {
+        const response = await fetch(`/api/auth/workspaces?username=${encodeURIComponent(currentUser.value.username)}&path=${encodeURIComponent(ws.path)}`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        if (data.success) {
+            // Re-load workspaces to update the list and handle current workspace removal
+            await loadWorkspaces();
+        } else {
+            alert('移除工作区失败: ' + (data.error || '未知错误'));
+        }
+    } catch (error) {
+        console.error('Error deleting workspace:', error);
+        alert('系统错误: 无法移除工作区');
+    }
+};
+
 
 const modelConfig = ref({
     providerID: '',
@@ -668,6 +688,7 @@ onMounted(async () => {
       @delete-session="handleDeleteSession"
       @select-workspace="handleSelectWorkspace"
       @create-workspace="handleCreateWorkspace"
+      @delete-workspace="handleDeleteWorkspace"
     />
     
     <main class="main-container">
