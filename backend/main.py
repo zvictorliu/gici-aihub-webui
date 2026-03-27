@@ -445,12 +445,9 @@ def register():
     if any(u["username"] == username for u in users):
         return jsonify({"error": "用户名已存在"}), 400
 
-    users.append({
-        "username": username,
-        "password": password,
-        "sessions": [],
-        "workspaces": []
-    })
+    users.append(
+        {"username": username, "password": password, "sessions": [], "workspaces": []}
+    )
     save_users(users)
 
     return jsonify({"username": username, "message": "注册成功"})
@@ -466,7 +463,10 @@ def login():
         return jsonify({"error": "缺少用户名或密码"}), 400
 
     users = load_users()
-    user = next((u for u in users if u["username"] == username and u["password"] == password), None)
+    user = next(
+        (u for u in users if u["username"] == username and u["password"] == password),
+        None,
+    )
 
     if not user:
         return jsonify({"error": "用户名或密码错误"}), 401
@@ -566,47 +566,6 @@ def stream_events():
             yield f"data: {error_data}\n\n"
 
     return Response(generate(), mimetype="text/event-stream")
-
-
-@app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-def proxy(path):
-    url = f"{OPENCODE_URL}/{path}"
-
-    # Forward the request to the opencode server
-    headers = {key: value for (key, value) in request.headers if key != "Host"}
-    workspace_path = request.headers.get("x-workspace-path")
-    workspace_id = request.headers.get("x-workspace-id")
-
-    if workspace_path:
-        headers["x-opencode-directory"] = workspace_path
-
-    # Optionally forward ID if opencode server needs it,
-    # but the core requirement was directory mapping and local config override.
-
-    resp = requests.request(
-        method=request.method,
-        url=url,
-        headers=headers,
-        data=request.get_data(),
-        cookies=request.cookies,
-        allow_redirects=False,
-        params=list(request.args.items(multi=True)),
-    )
-
-    # Exclude certain headers from the response
-    excluded_headers = [
-        "content-encoding",
-        "content-length",
-        "transfer-encoding",
-        "connection",
-    ]
-    headers = [
-        (name, value)
-        for (name, value) in resp.raw.headers.items()
-        if name.lower() not in excluded_headers
-    ]
-
-    return Response(resp.content, resp.status_code, headers)
 
 
 if __name__ == "__main__":
