@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, g
 import json
 import os
 import requests
 import tomllib
 import re
+import secrets
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -11,6 +12,31 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
+
+# In-memory token store: {token: username}
+ACTIVE_TOKENS = {}
+
+
+@app.before_request
+def verify_token():
+    # Exclude login, register and static-like paths if any
+    if request.path in ["/api/auth/login", "/api/auth/register"]:
+        return
+
+    # Check for token in Authorization header or query parameter (for SSE)
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    else:
+        token = request.args.get("token")
+
+    if not token or token not in ACTIVE_TOKENS:
+        return jsonify({"error": "Unauthorized: Missing or invalid token"}), 401
+
+    # Attach username to global context for the request
+    g.username = ACTIVE_TOKENS[token]
+
 
 # Paths
 BACKEND_DIR = Path(__file__).parent
@@ -471,7 +497,11 @@ def login():
     if not user:
         return jsonify({"error": "用户名或密码错误"}), 401
 
-    return jsonify({"username": username})
+    # Generate token
+    token = secrets.token_hex(16)
+    ACTIVE_TOKENS[token] = username
+
+    return jsonify({"username": username, "token": token})
 
 
 @app.route("/api/auth/workspaces", methods=["GET"])

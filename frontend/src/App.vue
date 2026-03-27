@@ -16,6 +16,22 @@ import 'highlight.js/styles/github-dark.css';
 const currentUser = ref(null);
 const authPage = ref('login'); // 'login' or 'register'
 
+const apiFetch = async (url, options = {}) => {
+    const token = currentUser.value?.token;
+    const headers = {
+        ...options.headers,
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await window.fetch(url, { ...options, headers });
+    if (response.status === 401) {
+        handleLogout();
+        throw new Error('Session expired. Please login again.');
+    }
+    return response;
+};
+
 const currentSessionId = ref(null);
 const messages = ref([]);
 const sessions = ref([]);
@@ -34,7 +50,7 @@ const effectiveWorkspaceId = computed(() => currentWorkspaceId.value);
 
 const refreshConfig = async () => {
     try {
-        const response = await fetch(`/api/config/active?workspace_id=${effectiveWorkspaceId.value}`);
+        const response = await apiFetch(`/api/config/active?workspace_id=${effectiveWorkspaceId.value}`);
         const data = await response.json();
         // Update appConfig object properties
         Object.assign(appConfig, data);
@@ -46,7 +62,7 @@ const refreshConfig = async () => {
 const loadWorkspaces = async () => {
     if (!currentUser.value) return;
     try {
-        const response = await fetch(`/api/auth/workspaces?username=${encodeURIComponent(currentUser.value.username)}`);
+        const response = await apiFetch(`/api/auth/workspaces?username=${encodeURIComponent(currentUser.value.username)}`);
         const data = await response.json();
         systemWorkspaces.value = data.system || [];
         userWorkspaces.value = data.user || [];
@@ -83,7 +99,7 @@ const handleCreateWorkspace = async (payload) => {
     if (!currentUser.value) return;
     
     try {
-        const response = await fetch('/api/auth/workspaces', {
+        const response = await apiFetch('/api/auth/workspaces', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -110,7 +126,7 @@ const handleDeleteWorkspace = async (ws) => {
     if (!confirm(`确定要移除工作区 "${ws.name || ws.path}" 吗？\n注意：这仅是从列表中移除，不会删除物理文件夹。`)) return;
 
     try {
-        const response = await fetch(`/api/auth/workspaces?username=${encodeURIComponent(currentUser.value.username)}&path=${encodeURIComponent(ws.path)}`, {
+        const response = await apiFetch(`/api/auth/workspaces?username=${encodeURIComponent(currentUser.value.username)}&path=${encodeURIComponent(ws.path)}`, {
             method: 'DELETE'
         });
         const data = await response.json();
@@ -150,6 +166,9 @@ const setupEventSource = () => {
     }
 
     const url = new URL('/api/events', window.location.origin);
+    if (currentUser.value?.token) {
+        url.searchParams.append('token', currentUser.value.token);
+    }
     if (effectiveWorkspacePath.value) {
         url.searchParams.append('workspace_path', effectiveWorkspacePath.value);
     }
@@ -260,7 +279,7 @@ const appendMessage = (text, sender, timestamp, providerID, modelID, isError = f
 
 const loadConfig = async () => {
     try {
-        const response = await fetch('/api/config/providers');
+        const response = await apiFetch('/api/config/providers');
         const data = await response.json();
         providers.value = data;
         
@@ -290,7 +309,7 @@ const loadHistory = async () => {
             headers['x-workspace-id'] = effectiveWorkspaceId.value;
         }
         
-        const response = await fetch(`/api/sessions?username=${encodeURIComponent(currentUser.value.username)}`, {
+        const response = await apiFetch(`/api/sessions?username=${encodeURIComponent(currentUser.value.username)}`, {
             headers
         });
         const data = await response.json();
@@ -324,7 +343,7 @@ const handleSelectSession = async (sessionId) => {
             headers['x-workspace-id'] = effectiveWorkspaceId.value;
         }
         
-        const response = await fetch(`/api/sessions/${sessionId}/messages`, {
+        const response = await apiFetch(`/api/sessions/${sessionId}/messages`, {
             headers
         });
         const data = await response.json();
@@ -362,7 +381,7 @@ const handleSendMessage = async (message) => {
 
         // Lazy session initialization
         if (!currentSessionId.value) {
-            const sessionResp = await fetch('/api/sessions', { 
+            const sessionResp = await apiFetch('/api/sessions', { 
                 method: 'POST',
                 headers: commonHeaders,
                 body: JSON.stringify({ 
@@ -378,7 +397,7 @@ const handleSendMessage = async (message) => {
             }
         }
 
-        const response = await fetch(`/api/sessions/${currentSessionId.value}/messages`, {
+        const response = await apiFetch(`/api/sessions/${currentSessionId.value}/messages`, {
             method: 'POST',
             headers: commonHeaders,
             body: JSON.stringify({
@@ -439,7 +458,7 @@ const handleRenameSession = async (session) => {
             headers['x-workspace-id'] = effectiveWorkspaceId.value;
         }
         
-        const response = await fetch(`/api/sessions/${session.id}`, {
+        const response = await apiFetch(`/api/sessions/${session.id}`, {
             method: 'PATCH',
             headers: headers,
             body: JSON.stringify({ title: newTitle.trim() })
@@ -467,7 +486,7 @@ const handleDeleteSession = async (session) => {
         }
 
         
-        const response = await fetch(`/api/sessions/${session.id}?username=${encodeURIComponent(currentUser.value.username)}`, {
+        const response = await apiFetch(`/api/sessions/${session.id}?username=${encodeURIComponent(currentUser.value.username)}`, {
             method: 'DELETE',
             headers: headers
         });

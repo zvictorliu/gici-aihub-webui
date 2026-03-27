@@ -29,7 +29,10 @@ export const authService = {
       throw new Error(data.error || '登录失败');
     }
     
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify({ username: data.username }));
+    localStorage.setItem(
+      CURRENT_USER_KEY,
+      JSON.stringify({ username: data.username, token: data.token })
+    );
     return data;
   },
 
